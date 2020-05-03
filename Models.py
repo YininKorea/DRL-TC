@@ -9,10 +9,6 @@ from  torchsummary import summary
 import numpy as np
 import torchvision
 
-class Flatten(nn.Module):
-    def forward(self, x):
-        x = x.view(x.size()[0], -1)
-        return x
 
 class Branch(nn.Module):
     def __init__(self, in_channels,activation='soft'):
@@ -21,13 +17,14 @@ class Branch(nn.Module):
         self.conv=nn.Conv2d(in_channels,256,kernel_size=3,stride=1,padding=1)
         self.norm=nn.BatchNorm2d(256)
         self.activation=nn.ReLU()
-        self.dense=nn.Conv2d(256,1024,kernel_size=1, stride=1, padding=0, bias=True)
+        self.reduction=nn.Conv2d(256,1,kernel_size=1, stride=1, padding=0, bias=True)
+        self.dense=nn.Conv2d(1,1024,kernel_size=1, stride=1, padding=0, bias=True)## dense layer
 
     def forward(self,x,activation="soft"):
         x=self.conv(x)
         x=self.norm(x)
         x=self.activation(x)
-        #x = x.view(x.size()[0], -1)
+        x=self.reduction(x)
         x=self.dense(x)
         if activation=='relu':
             x=F.relu(x)

@@ -15,9 +15,9 @@ train_momentum = 0.5
 policy_loss=torch.nn.CrossEntropyLoss()
 value_loss=torch.nn.CrossEntropyLoss()
 number_node=256
-train_value=np.random.rand(10,1,256,256)## assume we have 256 nodes, 10 eposides
+train_value=np.random.rand(10,1,20,20)## assume we have 256 nodes, 10 eposides
 #train_value=np.random.rand(10)##value function , can be roughly considered as a label of each state
-train_policy=np.random.rand(10,1,256,256)
+train_policy=np.random.rand(10,1,20,20)
 train_label=np.random.rand(10,1,256,256)
 
 
