@@ -10,24 +10,35 @@ import numpy as np
 import torch
 
 class State(object):
-    def __init__(self,state,policy, value):
+    def __init__(self,state):
         self.state=state
-        self.policy_matrix=policy
-        self.value_matrix=value
+        self.policy_matrix=None
+        self.value_matrix=None
+
+    def do_move(self,index, action):
+        self.state[index][action]=1
+        return 0
+
     def game_end(self):
         for node in self.state:
             if torch.sum(node)<2:
                 return False
         return True
-
+def shape_transfer(input):
+    current_status=input
+    if len(current_status.shape)==2:
+        return current_status.unsqueeze(0).unsqueeze(0).float()
+    else:
+        return current_status[0][0]
 
 class Node(object):
     """A node in the MCTS tree. Each node keeps track of its own value Q, prior probability P, and
     its visit-count-adjusted prior score u.
     """
 
-    def __init__(self, parent, prior_p):
+    def __init__(self, parent, prior_p,index):
         self._parent = parent
+        self.index=index  ## node ID
         self._childnode = {}  # a map from action to TreeNode
         self._visit_counts = 0
         self._data=0## its data
@@ -36,10 +47,12 @@ class Node(object):
         self._P = prior_p
 
     def select(self, c_puct):
+
         return max(self._childnode.items(), key=lambda act_node: act_node[1].get_value(c_puct))
 
-    def get_value(self, c_puct): ## be used to compute the
-        self._u = c_puct * self._P * np.sqrt(self._parent._n_visits) / (1 + self._n_visits)
+
+    def get_value(self, c_puct): ## be used to compute the UCB upperbound
+        self._u = c_puct * self._P * np.sqrt(self._parent._visit_counts) / (1 + self._visit_counts)
         return self._Q + self._u
 
     def expand(self, action_priors):  ## povide a possible action list (adding child node)
@@ -47,18 +60,21 @@ class Node(object):
         action_priors -- output from policy function - a list of tuples of actions
             and their prior probability according to the policy function.
         """
-        for action, prob in action_priors:
-            if action not in self._children:
-                self._children[action] = Node(self, prob)
+        action_priors=action_priors[self.index].data.numpy()
+        for id, prob in enumerate(action_priors):
+            if id not in self._childnode and id !=0 and id !=self.index:  ## except the root node
+                #prob=torch.max(prob).data
+                #print(prob.shape)
+                self._childnode[id] = Node(self, prob,id)
 
 
     def update(self, leaf_value):  ## backpropogation
         """Update node values from leaf evaluation.
         """
         # Count visit.
-        self._n_visits += 1
+        self._visit_counts+= 1
         # Update Q, a running average of values for all visits.
-        self._Q += 1.0 * (leaf_value - self._Q) / self._n_visits
+        self._Q += 1.0 * (leaf_value - self._Q) / self._visit_counts
 
     def update_recursive(self, leaf_value):
         """resursively call update function of nodes.

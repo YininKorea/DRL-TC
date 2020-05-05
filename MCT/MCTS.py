@@ -1,4 +1,4 @@
-from .Node import  Node
+from .Node import  Node,shape_transfer
 
 import numpy as np
 import copy
@@ -27,14 +27,6 @@ policy:
         make sure P_n >P_u
 '''
 
-def policy_builter(state):
-    index_node=[]
-    for indice, node in enumerate(state):
-        if sum(node) < 2:
-            index_node.append(indice)
-
-
-    return 0,0
 
 
 
@@ -49,7 +41,7 @@ class MCTS(object):
 
     """
 
-    def __init__(self,  n_action=19,c_puct=5, n_playout=100):
+    def __init__(self,  n_action=19,c_puct=5, n_playout=5):
         """Arguments:
         policy_value_fn -- a function that takes in a board state and outputs a list of (action, probability)
             tuples and also a score in [-1, 1] (i.e. the expected value of the end game score from
@@ -57,11 +49,11 @@ class MCTS(object):
         c_puct -- a number of possible child node exploration, we set 19
         n_playout--- number of MCTS
         """
-        self._root = Node(None, 1.0)
+        self._root = Node(None, 1.0,0)
         self._policy = DL_model(in_channels=1).to('cpu')
         self._c_explation = n_action
         self.c_puct=c_puct  ## the ratio between exploration and refund, used to compute UCB
-        self._n_playout = n_playout
+        self._n_playout = n_playout ## number of search
         self.state_record=[]  ## save the state
 
     def _playout(self, state):
@@ -72,24 +64,27 @@ class MCTS(object):
         state -- a copy of the state.
         """
         node = self._root
+       # i=1
         while True:
             if node.is_leaf():
                 break
-                # Greedily select next move.
+            #print(node.index)
+            current_index=node.index
             action, node = node.select(self._c_explation)
-            state.do_move(action)
-        value=state.policy_matrix
-        policy=state.value_matrix
-        action_probs, leaf_value = self._policy(value,policy)## get predictions from DNN
+            state.do_move(current_index,action)
 
-        # Check for terminal state.
+        current_state=shape_transfer(state.state)
+        action_probs, leaf_value = self._policy(current_state)## get predictions from DNN
+        action_probs,leaf_value=shape_transfer(action_probs),shape_transfer(leaf_value)  ## squeeze outputs from DNN into valid actions and values
+        #print(leaf_value.shape)
         end = state.game_end()
         if not end:
             node.expand(action_probs)
         else:
             # for end state，return the "true" leaf_value
             self.state_record.append(state.adjacency_matrix)
-
+        leaf_value=-leaf_value[node.index][node.index]
+        #print(leaf_value.shape)
         node.update_recursive(-leaf_value)
 
     def get_move_probs(self, state, temp=1e-3):
@@ -101,11 +96,12 @@ class MCTS(object):
         the available actions and the corresponding probabilities
         """
         for n in range(self._n_playout):
+            #print(n)
             state_copy = copy.deepcopy(state)
             self._playout(state_copy)
 
         # calc the move probabilities based on the visit counts at the root node
-        act_visits = [(act, node._n_visits) for act, node in self._root._children.items()]
+        act_visits = [(act, node._visit_counts) for act, node in self._root._childnode.items()]
         acts, visits = zip(*act_visits)
         act_probs = softmax(1.0 / temp * np.log(visits))
 
