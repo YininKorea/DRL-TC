@@ -1,49 +1,48 @@
-import random, math
-import matplotlib.pyplot as plt
-import numpy as np
-import networkx as nx
+from MCTS import MCTS, State
+from Model import DNN
 
-n_topologies = 100
-n_sensors = 19
-scatter_area_radius = 1000 # meter
-initial_energy = 1 # Joule
-datasize = (500, 1000) # range of bits
-e_p = 50e-9 # nJ/bit
-rho = 1e-12 # pJ/m²/bit
+n_nodes = 20
+n_iterations = 100
+n_episodes = 10
+n_searches = 100
+exploration_level = 0.5
 
-#topologies = [generate_topology(nodes) for i in range(n_topologies)]
-#lifetimes = [min([calculate_battery_lifetime(n) for n in topology.nodes]) for topology in topologies]
+def drltc():
+	training_dataset = []
+	dnn = DNN(minibatch=16, learning_rate=10e-6)
 
-# visualize topologies (superimposed opaque)
-# graph of 
+	for iteration in range(n_iterations):
+		episode_root_state = State(n_nodes)
 
-def aggregate(node):
-	return random.randint(datasize[0], datasize[1]) + sum([aggregate(child) for child in node.children])
+		for episode in range(n_episodes):
+			mcts = MCTS(dnn, exploration_level)
 
-def energy_consumption(node, bits, dist_to_parent):
-	e_tx = rho * dist_to_parent**2
-	return (e_p + e_tx) * bits
+			for search in range(n_searches):
+				mcts.search(episode_root_state)
 
-def dist(n1, n2):
-	return ((n1.x-n2.x)**2 + (n1.y-n2.y)**2)**0.5
+			normalized_visits = mcts.action_visits[episode_root_state]/mcts.action_visits[episode_root_state].sum()
+			training_dataset.append(episode_root_state.adjacency, normalized_visits.flatten(), 0)
 
-def calculate_battery_lifetime(node):
-	initial_energy/energy_consumption(node, aggregate(node), dist(node, node.parent))
+			if episode_root_state_idx in terminal_state_idxs:
+				reward = simulate(states[episode_root_state_idx])
+				for dataset in new_datasets:
+					dataset[-1] = reward
+			else:
+				episode_root_state_idx = np.random.choice(n_nodes, p=normalized_visits) # sample an index according to action probabilities
+		training_dataset += new_datasets
+		random.shuffle(training_dataset)
+		dnn.train(training_dataset)
 
-# generate topology --> star, random MST
-def generate_topology(nodes):
-	pass
+		# construct test topology
+		state = State(n_nodes)
+		while not state.is_terminal():
+			state_policy, _ = dnn.eval(state.adjacency)
+			state_policy[~state.get_valid_actions()] = 0 # set invalid actions to 0
+			state_policy /= state_policy.sum() # re-normalize over valid actions
+			next_action = np.unravel_index(np.random.choice(n_nodes**2, p=state_policy.flatten()), shape=state_policy.shape
+			state = state.transition(next_action)
 
-def scatter_nodes(n_nodes, radius):
-	nodes = []
-	for i in range(n_nodes):
-		a = random.random() * 360
-		r = random.random() * radius
-		nodes.append((i,{'coord':(math.cos(a)*r, math.sin(a)*r)}))
-	return nodes
+		final_topology = state.adjacency
 
-nodes = scatter_nodes(n_sensors, scatter_area_radius)
-G = nx.Graph()
-G.add_nodes_from(nodes)
-nx.draw(G, pos=nodes)
-plt.show()
+if __name__ == '__main__':
+	drltc()

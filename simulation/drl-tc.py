@@ -65,15 +65,11 @@ def get_valid_actions(state_idx):
 def drltc():
 	training_dataset = []
 	for iteration in range(n_iterations):
-		episode_root_state_idx = 0
-		new_datasets = []
+		episode_root_state = State(n_nodes)
 		for episode in range(n_episodes):
-			visit_counts.fill(0)
-			visit_action_counts.fill(0)
-			state_action_values.fill(0.0)
-			policy.fill(0.0)
+			mcts = MCTS()
 			for search in range(n_searches):
-				mcts(episode_root_state_idx)
+				mcts.search(episode_root_state)
 			normalized_visits = visit_action_counts[episode_root_state_idx]/visit_action_counts[episode_root_state_idx].sum()
 			new_datasets.append(states[episode_root_state_idx], normalized_visits, 0)
 			if episode_root_state_idx in terminal_state_idxs:

@@ -26,10 +26,10 @@ class Branch(nn.Module):
         return x
 
 
-class DL_model(nn.Module):
+class Model(nn.Module):
 
     def __init__(self):
-        super(DL_model, self).__init__()
+        super(Model, self).__init__()
 
         self.resnet=[]
         for i in range(8):
@@ -43,3 +43,22 @@ class DL_model(nn.Module):
         policy=self.policy_branch(out)
         value=self.value_branch(out)
         return policy,value
+
+class DNN:
+    def __init__(self, input_dim, minibatch, learning_rate):
+        self.input_dim = input_dim
+        self.model = Model()
+        self.optimizer = torch.adam(learning_rate)
+
+    def train(self, dataset):
+        self.model.train()
+        # for dataset minibatch
+        # run network
+        # run loss
+        # apply optimizer
+        
+    def eval(self, input):
+        self.model.eval()
+        raw_policy, raw_value = self.model(input)
+        #output policy dist is long vector, reshape to matrix
+        return raw_policy[:self.input_dim**2].reshape(self.input_dim, -1), raw_value
