@@ -9,7 +9,6 @@ class Branch(nn.Module):
 
         self.conv=nn.Conv2d(in_channels,256,kernel_size=3,stride=1,padding=1)
         self.norm=nn.BatchNorm2d(256)
-        if activation=='relu'
         self.activation=nn.ReLU()
         self.dense=nn.Linear(400, out_channels)
 

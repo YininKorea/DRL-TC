@@ -23,12 +23,13 @@ def drltc():
 			normalized_visits = mcts.action_visits[episode_root_state]/mcts.action_visits[episode_root_state].sum()
 			training_dataset.append(episode_root_state.adjacency, normalized_visits.flatten(), 0)
 
-			if episode_root_state_idx in terminal_state_idxs:
-				reward = simulate(states[episode_root_state_idx])
+			if episode_root_state.is_terminal():
+				reward = simulate(episode_root_state.adjacency)
 				for dataset in new_datasets:
 					dataset[-1] = reward
 			else:
-				episode_root_state_idx = np.random.choice(n_nodes, p=normalized_visits) # sample an index according to action probabilities
+				next_action = np.unravel_index(np.random.choice(n_nodes**2, p=normalized_visits.flatten()), shape=normalized_visits.shape)
+				episode_root_state = episode_root_state.transition(next_action)
 		training_dataset += new_datasets
 		random.shuffle(training_dataset)
 		dnn.train(training_dataset)
@@ -39,7 +40,7 @@ def drltc():
 			state_policy, _ = dnn.eval(state.adjacency)
 			state_policy[~state.get_valid_actions()] = 0 # set invalid actions to 0
 			state_policy /= state_policy.sum() # re-normalize over valid actions
-			next_action = np.unravel_index(np.random.choice(n_nodes**2, p=state_policy.flatten()), shape=state_policy.shape
+			next_action = np.unravel_index(np.random.choice(n_nodes**2, p=state_policy.flatten()), shape=state_policy.shape)
 			state = state.transition(next_action)
 
 		final_topology = state.adjacency

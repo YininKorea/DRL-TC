@@ -14,7 +14,8 @@ class MCTS:
 	def search(self, state):
 
 		if state.is_terminal():
-			return r
+			state_policy, state_value = self.dnn.eval(state.adjacency)
+			return state_value # could also return reward == simulation
 
 		if state not in self.visits:
 			state_policy, state_value = self.dnn.eval(state.adjacency)
@@ -22,12 +23,12 @@ class MCTS:
 			state_policy /= state_policy.sum() # re-normalize over valid actions
 			self.pi[state] = state_policy
 			self.visits[state] = 1
-			self.action_visits[state] = np.zeros((n_nodes, n_nodes))
+			self.action_visits[state] = np.zeros(state.adjacency.shape)
 
 			return state_value
 
 		valid_actions = state.get_valid_actions()
-		upper_confidence_bounds = np.zeros((n_nodes, n_nodes))
+		upper_confidence_bounds = np.zeros(state.adjacency.shape)
 		upper_confidence_bounds[valid_actions] = self.Q[state] + self.exploration_level * self.pi[state] * (np.sqrt(self.visits[state])/(1+self.action_visits[state]))
 
 		next_action = tiebreak_argmax(upper_confidence_bounds) # not normal argmax since it does not support random tie-breaking
@@ -44,8 +45,8 @@ class MCTS:
 
 class State:
 
-	def __init__(self, n_nodes, adjacency=np.zeros((n_nodes, n_nodes))):
-		self.adjacency = adjacency
+	def __init__(self, n_nodes, adjacency=None):
+		self.adjacency = adjacency or np.zeros((n_nodes, n_nodes))
 		self.n_nodes = n_nodes
 
 	def is_terminal(self):
