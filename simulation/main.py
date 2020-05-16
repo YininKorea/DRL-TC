@@ -1,27 +1,32 @@
 from MCTS import MCTS, State
 from Model import DNN
 
-n_nodes = 20
+import numpy as np
+
+n_nodes = 5
 n_iterations = 100
-n_episodes = 10
+n_episodes = 1
 n_searches = 100
 exploration_level = 0.5
 
 def drltc():
 	training_dataset = []
-	dnn = DNN(minibatch=16, learning_rate=10e-6)
+	dnn = DNN(n_nodes, minibatch=16, learning_rate=10e-6)
 
 	for iteration in range(n_iterations):
-		episode_root_state = State(n_nodes)
+		episode_root_state = State(np.zeros((n_nodes, n_nodes)))
 
 		for episode in range(n_episodes):
-			mcts = MCTS(dnn, exploration_level)
+			mcts = MCTS(episode_root_state.shape, dnn, exploration_level)
 
 			for search in range(n_searches):
+				print(f'\repisode {episode}, search {search}', end='\n')
 				mcts.search(episode_root_state)
 
 			normalized_visits = mcts.action_visits[episode_root_state]/mcts.action_visits[episode_root_state].sum()
-			training_dataset.append(episode_root_state.adjacency, normalized_visits.flatten(), 0)
+			print(episode_root_state.adjacency)
+			print(normalized_visits)
+			training_dataset.append((episode_root_state.adjacency, normalized_visits.flatten(), 0))
 
 			if episode_root_state.is_terminal():
 				reward = simulate(episode_root_state.adjacency)
@@ -30,7 +35,6 @@ def drltc():
 			else:
 				next_action = np.unravel_index(np.random.choice(n_nodes**2, p=normalized_visits.flatten()), shape=normalized_visits.shape)
 				episode_root_state = episode_root_state.transition(next_action)
-		training_dataset += new_datasets
 		random.shuffle(training_dataset)
 		dnn.train(training_dataset)
 
