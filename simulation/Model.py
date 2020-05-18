@@ -57,7 +57,6 @@ class DNN:
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
 
     def train(self, dataset):
-        print('train')
         self.model.train()
         dataloader = data.DataLoader(dataset, self.batch_size, shuffle=True)
         total_loss = 0

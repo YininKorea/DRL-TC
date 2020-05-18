@@ -5,11 +5,12 @@ from Simulation import Simulation
 import matplotlib.pyplot as plt
 import numpy as np
 import random
+import torch
 
-n_nodes = 20
-n_iterations = 40
+n_nodes = 10
+n_iterations = 20
 n_episodes = 10
-n_searches = 100
+n_searches = 50
 exploration_level = 0.5
 
 def drltc():
@@ -25,14 +26,14 @@ def drltc():
 			mcts = MCTS(episode_root_state.shape, dnn, simulation, exploration_level)
 
 			for search in range(n_searches):
-				print(f'\repisode {episode}, search {search}', end='')
+				print(f'\riteration {iteration}, episode {episode}, search {search}', end='')
 				state_value = mcts.search(episode_root_state)
 
 			if mcts.action_visits[episode_root_state].sum() != 0:
 				normalized_visits = mcts.action_visits[episode_root_state]/mcts.action_visits[episode_root_state].sum()
 			else:
 				normalized_visits = mcts.action_visits[episode_root_state]
-			training_dataset.add((episode_root_state.adjacency, normalized_visits.flatten(), np.array(state_value)))
+			training_dataset.add([episode_root_state.adjacency, normalized_visits.flatten(), np.array(state_value)])
 
 			if episode_root_state.is_terminal():
 				reward = simulation.eval(episode_root_state.adjacency)
@@ -41,6 +42,7 @@ def drltc():
 			else:
 				next_action = np.unravel_index(np.random.choice(n_nodes**2, p=normalized_visits.flatten()), shape=normalized_visits.shape)
 				episode_root_state = episode_root_state.transition(next_action)
+		print('\n')
 		dnn.train(training_dataset)
 
 		# construct test topology
@@ -66,6 +68,7 @@ def drltc():
 	plt.ylabel('lifetime')
 	plt.xlabel('iteration')
 	plt.show()
+	torch.save(dnn.model.state_dict, 'model_checkpoint_2.pt')
 
 if __name__ == '__main__':
 	drltc()
