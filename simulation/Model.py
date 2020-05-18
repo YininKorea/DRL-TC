@@ -13,11 +13,11 @@ class Branch(nn.Module):
         self.conv=nn.Conv2d(in_channels,256,kernel_size=3,stride=1,padding=1)
         self.norm=nn.BatchNorm2d(256)
         self.act1=nn.ReLU()
+        self.dense=nn.Linear(input_dim**2*256, out_channels)
         if activation=='relu':
             self.act2=nn.ReLU()
         else:
             self.act2=nn.Softmax(dim=1)
-        self.dense=nn.Linear(input_dim**2*256, out_channels)
 
     def forward(self,x):
         x=self.conv(x)
@@ -52,8 +52,8 @@ class DNN:
     def __init__(self, input_dim, minibatch, learning_rate):
         self.input_dim = input_dim
         self.batch_size = minibatch
-        self.model = Model(input_dim).double()
-        self.loss_fn = torch.nn.KLDivLoss(reduction='batchmean')
+        self.model = Model(input_dim).double().cuda()
+        self.loss_fn = torch.nn.KLDivLoss(reduction='batchmean').cuda()
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
 
     def train(self, dataset):
@@ -61,26 +61,30 @@ class DNN:
         dataloader = data.DataLoader(dataset, self.batch_size, shuffle=True)
         total_loss = 0
         for batch, (state, policy, value) in enumerate(dataloader):
+
+            state = state.cuda()
+            policy = policy.cuda()
+            value = value.cuda()
+
             self.optimizer.zero_grad()
             pred_policy, pred_value = self.model(state.unsqueeze(1))
             loss_policy = self.loss_fn(pred_policy, policy)
-            loss_value = self.loss_fn(pred_value, value)
-
+            loss_value = self.loss_fn(pred_value, value.unsqueeze(1))
             loss = loss_policy + loss_value
             total_loss += loss
             loss.backward()
 
-            print(f'\r batch: {batch}, loss: {loss.data.numpy()}', end='')
+            print(f'\r batch: {batch}, loss: {loss.cpu().data.numpy()}', end='')
 
             self.optimizer.step()
         print(f'\r loss: {total_loss/(batch+1)}')
         
-    def eval(self, input):
+    def eval(self, in_data):
         self.model.eval()
-        tensor = torch.tensor(input).double().unsqueeze(0).unsqueeze(0)
+        tensor = torch.tensor(in_data).cuda().double().unsqueeze(0).unsqueeze(0)
         raw_policy, raw_value = self.model(tensor)
         #output policy dist is long vector, reshape to matrix
-        return raw_policy.detach().numpy()[:,:self.input_dim**2].reshape(self.input_dim, -1), raw_value.detach().numpy()[-1,-1]
+        return raw_policy.cpu().data.numpy()[:,:self.input_dim**2].reshape(self.input_dim, -1), raw_value.cpu().data.numpy()[-1,-1]
 
 class Dataset(data.Dataset):
 

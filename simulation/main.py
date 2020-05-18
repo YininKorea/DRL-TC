@@ -2,21 +2,28 @@ from MCTS import MCTS, State
 from Model import DNN, Dataset
 from Simulation import Simulation
 
+import networkx as nx
+
 import matplotlib.pyplot as plt
 import numpy as np
 import random
 import torch
 
-n_nodes = 10
+n_nodes = 5
 n_iterations = 20
-n_episodes = 10
+n_episodes = 5
 n_searches = 50
 exploration_level = 0.5
 
-def drltc():
+def star_baseline(simulation):
+	G = nx.generators.classic.star_graph(n_nodes-1)
+	topology = nx.convert_matrix.to_numpy_array(G)
+	topology[:,0] = 0
+	return simulation.eval(topology)
+
+def drltc(simulation):
 	training_dataset = Dataset()
-	dnn = DNN(n_nodes, minibatch=16, learning_rate=10e-6)
-	simulation = Simulation(n_nodes)
+	dnn = DNN(n_nodes, minibatch=16, learning_rate=10e-8)
 	statistics = []
 
 	for iteration in range(n_iterations):
@@ -60,6 +67,7 @@ def drltc():
 			lifetimes.append(simulation.eval(final_topology))
 		statistics.append([sum(lifetimes)/10, max(lifetimes), min(lifetimes)])
 		print(f'statistics: {statistics[-1]}')
+		#torch.save(lifetimes, f'lifetimes_iteration{iteration}.pt')
 
 	statistics = np.array(statistics)
 	plt.plot(statistics[:,0])
@@ -71,4 +79,6 @@ def drltc():
 	torch.save(dnn.model.state_dict, 'model_checkpoint_2.pt')
 
 if __name__ == '__main__':
-	drltc()
+	simulation = Simulation(n_nodes)
+	print(star_baseline(simulation))
+	drltc(simulation)
