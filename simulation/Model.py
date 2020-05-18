@@ -54,6 +54,7 @@ class DNN:
         self.batch_size = minibatch
         self.model = Model(input_dim).double().cuda()
         self.loss_fn = torch.nn.KLDivLoss(reduction='batchmean').cuda()
+        self.loss_fn2 = torch.nn.L1Loss().cuda()
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
 
     def train(self, dataset):
@@ -69,10 +70,12 @@ class DNN:
             self.optimizer.zero_grad()
             pred_policy, pred_value = self.model(state.unsqueeze(1))
             loss_policy = self.loss_fn(pred_policy, policy)
-            loss_value = self.loss_fn(pred_value, value.unsqueeze(1))
+            loss_value = self.loss_fn2(pred_value, value.unsqueeze(1))
+            print(loss_policy.cpu().data.numpy(), loss_value.cpu().data.numpy())
             loss = loss_policy + loss_value
             total_loss += loss
-            loss.backward()
+            loss_policy.backward(retain_graph=True)
+            loss_value.backward()
 
             print(f'\r batch: {batch}, loss: {loss.cpu().data.numpy()}', end='')
 
