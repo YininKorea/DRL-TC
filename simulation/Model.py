@@ -1,6 +1,9 @@
 import torch
 import torch.nn as nn
+import numpy as np
 import torchvision
+
+import torch.utils.data as data
 
 
 class Branch(nn.Module):
@@ -48,19 +51,53 @@ class Model(nn.Module):
 class DNN:
     def __init__(self, input_dim, minibatch, learning_rate):
         self.input_dim = input_dim
+        self.batch_size = minibatch
         self.model = Model(input_dim).double()
+        self.loss_fn = torch.nn.KLDivLoss(reduction='batchmean')
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
 
     def train(self, dataset):
+        print('train')
         self.model.train()
-        # for dataset minibatch
-        # run network
-        # run loss
-        # apply optimizer
+        dataloader = data.DataLoader(dataset, self.batch_size, shuffle=True)
+        total_loss = 0
+        for batch, (state, policy, value) in enumerate(dataloader):
+            self.optimizer.zero_grad()
+            pred_policy, pred_value = self.model(state.unsqueeze(1))
+            loss_policy = self.loss_fn(pred_policy, policy)
+            loss_value = self.loss_fn(pred_value, value)
+
+            loss = loss_policy + loss_value
+            total_loss += loss
+            loss.backward()
+
+            print(f'\r batch: {batch}, loss: {loss.data.numpy()}', end='')
+
+            self.optimizer.step()
+        print(f'\r loss: {total_loss/(batch+1)}')
         
     def eval(self, input):
         self.model.eval()
         tensor = torch.tensor(input).double().unsqueeze(0).unsqueeze(0)
         raw_policy, raw_value = self.model(tensor)
         #output policy dist is long vector, reshape to matrix
-        return raw_policy.detach().numpy()[:,:self.input_dim**2].reshape(self.input_dim, -1), raw_value
+        return raw_policy.detach().numpy()[:,:self.input_dim**2].reshape(self.input_dim, -1), raw_value.detach().numpy()[-1,-1]
+
+class Dataset(data.Dataset):
+
+    def __init__(self):
+        self.data = []
+
+    def __getitem__(self, idx):
+        entry = self.data[idx]
+        state = entry[0]
+        policy = np.zeros(1024)
+        policy[:len(entry[1])] = entry[1] #pad zeros
+        value = entry[2]
+        return torch.from_numpy(state), torch.from_numpy(policy), torch.from_numpy(value)
+
+    def __len__(self):
+        return len(self.data)
+
+    def add(self, data):
+        self.data.append(data)

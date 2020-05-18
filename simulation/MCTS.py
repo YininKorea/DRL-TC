@@ -4,18 +4,18 @@ from functools import partial
 
 class MCTS:
 
-	def __init__(self, state_shape, dnn, exploration_level):
+	def __init__(self, state_shape, dnn, simulation, exploration_level):
 		self.Q = ddict(partial(np.zeros, state_shape))
 		self.pi = dict()
 		self.visits = dict()
-		self.action_visits = dict()
+		self.action_visits = ddict(partial(np.zeros, state_shape))
 		self.dnn = dnn
+		self.simulation = simulation
 		self.exploration_level = exploration_level
 
 	def search(self, state):
 		if state.is_terminal():
-			state_policy, state_value = self.dnn.eval(state.adjacency)
-			return state_value # could also return reward == simulation
+			return self.simulation.eval(state.adjacency)
 
 		if state not in self.visits:
 			state_policy, state_value = self.dnn.eval(state.adjacency)
@@ -23,7 +23,6 @@ class MCTS:
 			state_policy /= state_policy.sum() # re-normalize over valid actions
 			self.pi[state] = state_policy
 			self.visits[state] = 1
-			self.action_visits[state] = np.zeros(state.shape)
 
 			return state_value
 
@@ -59,7 +58,6 @@ class State:
 		return np.outer(~not_connected, not_connected) # bool mask for adjacency matrix
 
 	def transition(self, action):
-		print(action)
 		adjacency = self.adjacency.copy()
 		adjacency[action] = 1
 		return State(adjacency)
