@@ -10,7 +10,7 @@ import random
 import torch
 
 n_nodes = 5
-n_iterations = 20
+n_iterations = 100
 n_episodes = 5
 n_searches = 50
 exploration_level = 0.5
@@ -36,6 +36,7 @@ def drltc(simulation):
 				print(f'\riteration {iteration}, episode {episode}, search {search}', end='')
 				state_value = mcts.search(episode_root_state)
 
+			# update
 			if mcts.action_visits[episode_root_state].sum() != 0:
 				normalized_visits = mcts.action_visits[episode_root_state]/mcts.action_visits[episode_root_state].sum()
 			else:
@@ -69,14 +70,15 @@ def drltc(simulation):
 		print(f'statistics: {statistics[-1]}')
 		#torch.save(lifetimes, f'lifetimes_iteration{iteration}.pt')
 
-	statistics = np.array(statistics)
-	plt.plot(statistics[:,0])
-	plt.plot(statistics[:,1])
-	plt.plot(statistics[:,2])
-	plt.ylabel('lifetime')
-	plt.xlabel('iteration')
-	plt.show()
-	torch.save(dnn.model.state_dict, 'model_checkpoint_2.pt')
+		if iteration%10 == 0:
+			statistics_np = np.array(statistics)
+			plt.plot(statistics_np[:,0])
+			plt.plot(statistics_np[:,1])
+			plt.plot(statistics_np[:,2])
+			plt.ylabel('lifetime')
+			plt.xlabel('iteration')
+			plt.show()
+	#torch.save(dnn.model.state_dict, 'model_checkpoint_2.pt')
 
 if __name__ == '__main__':
 	simulation = Simulation(n_nodes)
