@@ -15,7 +15,9 @@ class MCTS:
 
 	def search(self, state):
 		if state.is_terminal():
-			return self.simulation.eval(state.adjacency)
+			reward = self.simulation.eval(state.adjacency)
+			#_, reward = self.dnn.eval(state.adjacency)
+			return reward
 
 		if state not in self.visits:
 			state_policy, state_value = self.dnn.eval(state.adjacency)
