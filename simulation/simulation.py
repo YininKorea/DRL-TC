@@ -18,6 +18,7 @@ class Simulation():
 		dist_to_parent = np.array([self.dist(self.node_positions[n], self.node_positions[np.argmax(topology[:,n])]) for n in range(self.n_nodes)])
 		energy_consumption = (self.rho * dist_to_parent**2 + self.e_p) * node_values
 		battery_lifetime = self.initial_energy / energy_consumption
+		battery_lifetime[0] = battery_lifetime.max() # make sure gateway is not the minimum (has theoretical infinite lifetime)
 		return battery_lifetime.min()
 
 	def aggregate(self, node_idx, node_values, topology):
