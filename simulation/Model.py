@@ -52,10 +52,10 @@ class DNN:
     def __init__(self, input_dim, minibatch, learning_rate):
         self.input_dim = input_dim
         self.batch_size = minibatch
-        self.model = Model(input_dim).double().cuda()
-        self.loss_fn = torch.nn.KLDivLoss(reduction='batchmean').cuda()
-        self.loss_fn2 = torch.nn.L1Loss().cuda()
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
+        self.model = Model(input_dim).float().cuda()
+        self.loss_fn2 = torch.nn.CrossEntropyLoss().cuda()
+        self.loss_fn = torch.nn.MSELoss().cuda()
+        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=learning_rate)
 
     def train(self, dataset):
         self.model.train()
@@ -63,14 +63,14 @@ class DNN:
         total_loss = 0
         for batch, (state, policy, value) in enumerate(dataloader):
 
-            state = state.cuda()
-            policy = policy.cuda()
-            value = value.cuda()
+            state = state.float().cuda()
+            policy = policy.float().cuda()
+            value = value.float().cuda()
 
             self.optimizer.zero_grad()
             pred_policy, pred_value = self.model(state.unsqueeze(1))
             loss_policy = self.loss_fn(pred_policy, policy)
-            loss_value = self.loss_fn2(pred_value, value.unsqueeze(1))
+            loss_value = self.loss_fn(pred_value, value.unsqueeze(1))
             print(loss_policy.cpu().data.numpy(), loss_value.cpu().data.numpy())
             loss = loss_policy + loss_value
             total_loss += loss
@@ -84,7 +84,7 @@ class DNN:
         
     def eval(self, in_data):
         self.model.eval()
-        tensor = torch.tensor(in_data).cuda().double().unsqueeze(0).unsqueeze(0)
+        tensor = torch.tensor(in_data).cuda().float().unsqueeze(0).unsqueeze(0)
         raw_policy, raw_value = self.model(tensor)
         #output policy dist is long vector, reshape to matrix
         return raw_policy.cpu().data.numpy()[:,:self.input_dim**2].reshape(self.input_dim, -1), raw_value.cpu().data.numpy()[-1,-1]
@@ -104,6 +104,10 @@ class Dataset(data.Dataset):
 
     def __len__(self):
         return len(self.data)
+        # if len(self.data) < 10:
+        #     return len(self.data)
+        # else:
+        #     return 10
 
     def add(self, data):
         self.data.append(data)
