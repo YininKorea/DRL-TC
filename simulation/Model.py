@@ -5,7 +5,6 @@ import torchvision
 
 import torch.utils.data as data
 
-
 class Branch(nn.Module):
     def __init__(self, input_dim, in_channels, out_channels, activation='soft'):
         super(Branch, self).__init__()
@@ -40,7 +39,7 @@ class Model(nn.Module):
             self.resnet.append(torchvision.models.resnet.BasicBlock(256,256))
         self.resnet=nn.Sequential(*self.resnet)
         self.policy_branch=Branch(input_dim, 256, 1024, activation='soft')
-        self.value_branch=Branch(input_dim, 256, 1,activation='relu')
+        self.value_branch=Branch(input_dim, 256, 1024, activation='relu')
 
     def forward(self,state):
         out = self.resnet(state)
@@ -53,9 +52,9 @@ class DNN:
         self.input_dim = input_dim
         self.batch_size = minibatch
         self.model = Model(input_dim).float().cuda()
-        self.loss_fn2 = torch.nn.CrossEntropyLoss().cuda()
-        self.loss_fn = torch.nn.MSELoss().cuda()
-        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=learning_rate)
+        self.loss_fn = torch.nn.CrossEntropyLoss().cuda()
+        self.loss_fn2 = torch.nn.L1Loss().cuda()
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
 
     def train(self, dataset):
         self.model.train()
@@ -69,18 +68,17 @@ class DNN:
 
             self.optimizer.zero_grad()
             pred_policy, pred_value = self.model(state.unsqueeze(1))
-            loss_policy = self.loss_fn(pred_policy, policy)
-            loss_value = self.loss_fn(pred_value, value.unsqueeze(1))
-            print(loss_policy.cpu().data.numpy(), loss_value.cpu().data.numpy())
+            loss_policy = ((pred_policy-policy)**2).sum(dim=1).mean()
+            loss_value = ((pred_value-value).abs()).sum(dim=1).mean()
             loss = loss_policy + loss_value
             total_loss += loss
-            loss_policy.backward(retain_graph=True)
-            loss_value.backward()
+            #loss_policy.backward(retain_graph=True)
+            loss.backward()
 
-            print(f'\r batch: {batch}, loss: {loss.cpu().data.numpy()}', end='')
+            print(f'batch: {batch}, loss_policy: {loss_policy.cpu().data.numpy():.2f}, loss_value: {loss_value.cpu().data.numpy():.2f}')
 
             self.optimizer.step()
-        print(f'\r loss: {total_loss/(batch+1)}')
+        print(f'loss: {total_loss/(batch+1)}')
         
     def eval(self, in_data):
         self.model.eval()
@@ -99,15 +97,12 @@ class Dataset(data.Dataset):
         state = entry[0]
         policy = np.zeros(1024)
         policy[:len(entry[1])] = entry[1] #pad zeros
-        value = entry[2]
+        value = np.zeros(1024)
+        value[0] = entry[2]#/1000
         return torch.from_numpy(state), torch.from_numpy(policy), torch.from_numpy(value)
 
     def __len__(self):
         return len(self.data)
-        # if len(self.data) < 10:
-        #     return len(self.data)
-        # else:
-        #     return 10
 
     def add(self, data):
         self.data.append(data)

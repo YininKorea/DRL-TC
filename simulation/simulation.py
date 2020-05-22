@@ -19,7 +19,7 @@ class Simulation():
 		energy_consumption = (self.rho * dist_to_parent**2 + self.e_p) * node_values
 		battery_lifetime = self.initial_energy / energy_consumption
 		battery_lifetime[0] = battery_lifetime.max() # make sure gateway is not the minimum (has theoretical infinite lifetime)
-		return battery_lifetime.min()
+		return battery_lifetime.min().astype(np.float32)
 
 	def aggregate(self, node_idx, node_values, topology):
 		children = np.nonzero(topology[node_idx])[0]

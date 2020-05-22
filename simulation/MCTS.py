@@ -15,7 +15,7 @@ class MCTS:
 
 	def search(self, state):
 		if state.is_terminal():
-			reward = self.simulation.eval(state.adjacency)
+			reward = self.simulation.eval(state.adjacency)#/1000
 			#_, reward = self.dnn.eval(state.adjacency)
 			return reward
 
@@ -24,6 +24,7 @@ class MCTS:
 			state_policy[~state.get_valid_actions()] = 0 # set invalid actions to 0
 			state_policy /= state_policy.sum() # re-normalize over valid actions
 			self.pi[state] = state_policy
+			#print('eval', state_policy, state_value)
 			self.visits[state] = 1
 
 			return state_value
@@ -55,9 +56,12 @@ class State:
 		return self.adjacency.sum() == self.n_nodes-1
 
 	def get_valid_actions(self):
+		# adjacency matrix has parents in columns --> empty columns are unconnected nodes
 		not_connected = np.all(self.adjacency == 0, axis=0)
-		not_connected[0] = False # gateway root node never has a parent
-		return np.outer(~not_connected, not_connected) # bool mask for adjacency matrix
+		not_connected[0] = False # gateway root node is never unconnected, never valid action
+		# valid means connecting unconnected node (zero column) to connected node (nonzero column)
+		# except themselves --> logical AND between zero columns and its complement
+		return np.outer(~not_connected, not_connected) # bool mask for adjacency/transition matrix
 
 	def transition(self, action):
 		adjacency = self.adjacency.copy()

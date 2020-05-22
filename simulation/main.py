@@ -9,11 +9,13 @@ import numpy as np
 import random
 import torch
 
+
 n_nodes = 5
 n_iterations = 100
 n_episodes = 5
-n_searches = 50
-exploration_level = 0.5
+n_searches = 100
+n_simulations = 20
+exploration_level = n_nodes#*1000
 
 def star_baseline(simulation):
 	G = nx.generators.classic.star_graph(n_nodes-1)
@@ -23,7 +25,7 @@ def star_baseline(simulation):
 
 def drltc(simulation):
 	training_dataset = Dataset()
-	dnn = DNN(n_nodes, minibatch=16, learning_rate=10e-8)
+	dnn = DNN(n_nodes, minibatch=16, learning_rate=10e-6)
 	statistics = []
 
 	for iteration in range(n_iterations):
@@ -34,9 +36,13 @@ def drltc(simulation):
 
 			for search in range(n_searches):
 				print(f'\riteration {iteration}, episode {episode}, search {search}', end='')
-				state_value = mcts.search(episode_root_state)
+				mcts.search(episode_root_state)
+
+			state_value = mcts.Q[episode_root_state].mean()
+			#print(state_value)
 
 			# update
+			print('\nexploration:', np.linalg.norm(mcts.action_visits[episode_root_state].flatten(), 0))
 			if mcts.action_visits[episode_root_state].sum() != 0:
 				normalized_visits = mcts.action_visits[episode_root_state]/mcts.action_visits[episode_root_state].sum()
 			else:
@@ -44,18 +50,20 @@ def drltc(simulation):
 			training_dataset.add([episode_root_state.adjacency, normalized_visits.flatten(), np.array(state_value)])
 
 			if episode_root_state.is_terminal():
-				reward = simulation.eval(episode_root_state.adjacency)
+				reward = simulation.eval(episode_root_state.adjacency)#/1000
+				#print('reward', reward)
 				for dataset in training_dataset.data[-episode:]:
 					dataset[-1] = np.array(reward) #update value in all datasets produced in this iteration
 			else:
+				#print(normalized_visits)
 				next_action = np.unravel_index(np.random.choice(n_nodes**2, p=normalized_visits.flatten()), shape=normalized_visits.shape)
 				episode_root_state = episode_root_state.transition(next_action)
 		print('\n')
-		dnn.train(training_dataset)
+		dnn.train(training_dataset)	
 
-		# construct test topology
+		# construct test topologies
 		lifetimes = []
-		for i in range(10):
+		for i in range(n_simulations):
 			state = State(np.zeros((n_nodes, n_nodes)))
 			while not state.is_terminal():
 				state_policy, _ = dnn.eval(state.adjacency)
@@ -63,14 +71,13 @@ def drltc(simulation):
 				state_policy /= state_policy.sum() # re-normalize over valid actions
 				next_action = np.unravel_index(np.random.choice(n_nodes**2, p=state_policy.flatten()), shape=state_policy.shape)
 				state = state.transition(next_action)
-
 			final_topology = state.adjacency
 			lifetimes.append(simulation.eval(final_topology))
-		statistics.append([sum(lifetimes)/10, max(lifetimes), min(lifetimes)])
+		statistics.append([sum(lifetimes)/n_simulations, max(lifetimes), min(lifetimes), max(lifetimes)-min(lifetimes)])
 		print(f'statistics: {statistics[-1]}')
 		#torch.save(lifetimes, f'lifetimes_iteration{iteration}.pt')
 
-		if iteration%10 == 0:
+		if iteration%30 == 0 and iteration != 0:
 			statistics_np = np.array(statistics)
 			plt.plot(statistics_np[:,0])
 			plt.plot(statistics_np[:,1])
