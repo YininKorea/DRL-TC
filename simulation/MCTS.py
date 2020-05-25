@@ -15,7 +15,7 @@ class MCTS:
 
 	def search(self, state):
 		if state.is_terminal():
-			reward = self.simulation.eval(state.adjacency)#/1000
+			reward = self.simulation.eval(state.adjacency)/1000
 			#_, reward = self.dnn.eval(state.adjacency)
 			return reward
 

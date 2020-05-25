@@ -36,10 +36,13 @@ def drltc(simulation):
 
 			for search in range(n_searches):
 				print(f'\riteration {iteration}, episode {episode}, search {search}', end='')
-				mcts.search(episode_root_state)
+				reward = mcts.search(episode_root_state)
 
-			state_value = mcts.Q[episode_root_state].mean()
-			#print(state_value)
+			if episode_root_state.is_terminal():
+				state_value = reward
+			else:
+				q = mcts.Q[episode_root_state]
+				state_value = q.sum()/(q != 0).sum()
 
 			# update
 			print('\nexploration:', np.linalg.norm(mcts.action_visits[episode_root_state].flatten(), 0))
@@ -48,9 +51,9 @@ def drltc(simulation):
 			else:
 				normalized_visits = mcts.action_visits[episode_root_state]
 			training_dataset.add([episode_root_state.adjacency, normalized_visits.flatten(), np.array(state_value)])
-
+			print(state_value)
 			if episode_root_state.is_terminal():
-				reward = simulation.eval(episode_root_state.adjacency)#/1000
+				reward = simulation.eval(episode_root_state.adjacency)/1000
 				#print('reward', reward)
 				for dataset in training_dataset.data[-episode:]:
 					dataset[-1] = np.array(reward) #update value in all datasets produced in this iteration

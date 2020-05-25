@@ -84,6 +84,7 @@ class DNN:
         self.model.eval()
         tensor = torch.tensor(in_data).cuda().float().unsqueeze(0).unsqueeze(0)
         raw_policy, raw_value = self.model(tensor)
+        #print(raw_policy, raw_value)
         #output policy dist is long vector, reshape to matrix
         return raw_policy.cpu().data.numpy()[:,:self.input_dim**2].reshape(self.input_dim, -1), raw_value.cpu().data.numpy()[-1,-1]
 
