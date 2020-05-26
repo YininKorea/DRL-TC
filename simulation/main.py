@@ -12,10 +12,11 @@ import torch
 
 n_nodes = 5
 n_iterations = 100
-n_episodes = 5
+n_episodes = 4
 n_searches = 100
 n_simulations = 20
-exploration_level = n_nodes#*1000
+n_trainings = 10
+exploration_level = 1
 
 def star_baseline(simulation):
 	G = nx.generators.classic.star_graph(n_nodes-1)
@@ -51,7 +52,7 @@ def drltc(simulation):
 			else:
 				normalized_visits = mcts.action_visits[episode_root_state]
 			training_dataset.add([episode_root_state.adjacency, normalized_visits.flatten(), np.array(state_value)])
-			print(state_value)
+			#print(state_value)
 			if episode_root_state.is_terminal():
 				reward = simulation.eval(episode_root_state.adjacency)/1000
 				#print('reward', reward)
@@ -62,25 +63,34 @@ def drltc(simulation):
 				next_action = np.unravel_index(np.random.choice(n_nodes**2, p=normalized_visits.flatten()), shape=normalized_visits.shape)
 				episode_root_state = episode_root_state.transition(next_action)
 		print('\n')
-		dnn.train(training_dataset)	
+		for i in range(n_trainings):
+			dnn.train(training_dataset)
 
 		# construct test topologies
 		lifetimes = []
+		max_value = 0
 		for i in range(n_simulations):
 			state = State(np.zeros((n_nodes, n_nodes)))
+			trajectory = []
 			while not state.is_terminal():
 				state_policy, _ = dnn.eval(state.adjacency)
 				state_policy[~state.get_valid_actions()] = 0 # set invalid actions to 0
 				state_policy /= state_policy.sum() # re-normalize over valid actions
 				next_action = np.unravel_index(np.random.choice(n_nodes**2, p=state_policy.flatten()), shape=state_policy.shape)
+				trajectory.append(next_action)
 				state = state.transition(next_action)
 			final_topology = state.adjacency
-			lifetimes.append(simulation.eval(final_topology))
+			value = simulation.eval(final_topology)
+			lifetimes.append(value)
+			if (value > max_value):
+				max_value = value
+				max_trajectory = trajectory
+		print(max_value, max_trajectory)
 		statistics.append([sum(lifetimes)/n_simulations, max(lifetimes), min(lifetimes), max(lifetimes)-min(lifetimes)])
 		print(f'statistics: {statistics[-1]}')
 		#torch.save(lifetimes, f'lifetimes_iteration{iteration}.pt')
 
-		if iteration%30 == 0 and iteration != 0:
+		if iteration%10 == 0 and iteration != 0:
 			statistics_np = np.array(statistics)
 			plt.plot(statistics_np[:,0])
 			plt.plot(statistics_np[:,1])

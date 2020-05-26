@@ -52,7 +52,7 @@ class DNN:
         self.input_dim = input_dim
         self.batch_size = minibatch
         self.model = Model(input_dim).float().cuda()
-        self.loss_fn = torch.nn.CrossEntropyLoss().cuda()
+        self.loss_fn = torch.nn.KLDivLoss(reduction='batchmean').cuda()
         self.loss_fn2 = torch.nn.L1Loss().cuda()
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
 
@@ -68,7 +68,7 @@ class DNN:
 
             self.optimizer.zero_grad()
             pred_policy, pred_value = self.model(state.unsqueeze(1))
-            loss_policy = ((pred_policy-policy)**2).sum(dim=1).mean()
+            loss_policy = ((pred_policy-policy).abs()).sum(dim=1).mean()#self.loss_fn(pred_policy.log(), policy)
             loss_value = ((pred_value-value).abs()).sum(dim=1).mean()
             loss = loss_policy + loss_value
             total_loss += loss
@@ -94,7 +94,7 @@ class Dataset(data.Dataset):
         self.data = []
 
     def __getitem__(self, idx):
-        entry = self.data[idx]
+        entry = self.data[-idx]
         state = entry[0]
         policy = np.zeros(1024)
         policy[:len(entry[1])] = entry[1] #pad zeros
@@ -103,7 +103,7 @@ class Dataset(data.Dataset):
         return torch.from_numpy(state), torch.from_numpy(policy), torch.from_numpy(value)
 
     def __len__(self):
-        return len(self.data)
+        return min(len(self.data), 100)
 
     def add(self, data):
         self.data.append(data)
