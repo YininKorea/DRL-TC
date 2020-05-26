@@ -11,6 +11,7 @@ class Simulation():
 		self.e_p = e_p
 		self.rho = rho
 		self.node_positions = self.scatter_nodes(n_nodes, scatter_area_radius)
+		self.node_datasizes = np.random.randint(self.datasize_range[0], self.datasize_range[1], n_nodes)
 
 	def eval(self, topology):
 		node_values = np.zeros(self.n_nodes)
@@ -23,7 +24,7 @@ class Simulation():
 
 	def aggregate(self, node_idx, node_values, topology):
 		children = np.nonzero(topology[node_idx])[0]
-		data_size = random.randint(self.datasize_range[0], self.datasize_range[1]) + sum([self.aggregate(child, node_values, topology) for child in children])
+		data_size = self.node_datasizes[node_idx] + sum([self.aggregate(child, node_values, topology) for child in children])
 		node_values[node_idx] = data_size
 		return data_size
 
