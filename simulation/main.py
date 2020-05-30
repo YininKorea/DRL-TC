@@ -12,11 +12,11 @@ import torch
 
 n_nodes = 5
 n_iterations = 100
-n_episodes = 4
+n_episodes = 1
 n_searches = 100
 n_simulations = 20
-n_trainings = 10
-exploration_level = 1
+n_trainings = 1
+exploration_level = 1000
 
 def star_baseline(simulation):
 	G = nx.generators.classic.star_graph(n_nodes-1)
@@ -28,40 +28,43 @@ def drltc(simulation):
 	training_dataset = Dataset()
 	dnn = DNN(n_nodes, minibatch=16, learning_rate=10e-6)
 	statistics = []
+	max_trajectory = []
 
 	for iteration in range(n_iterations):
-		episode_root_state = State(np.zeros((n_nodes, n_nodes)))
+		root_state = State(np.zeros((n_nodes, n_nodes)))
 
 		for episode in range(n_episodes):
-			mcts = MCTS(episode_root_state.shape, dnn, simulation, exploration_level)
 
-			for search in range(n_searches):
-				print(f'\riteration {iteration}, episode {episode}, search {search}', end='')
-				reward = mcts.search(episode_root_state)
+			for n in range(n_nodes):
 
-			if episode_root_state.is_terminal():
-				state_value = reward
-			else:
-				q = mcts.Q[episode_root_state]
-				state_value = q.sum()/(q != 0).sum()
+				mcts = MCTS(root_state.shape, dnn, simulation, exploration_level)
 
-			# update
-			print('\nexploration:', np.linalg.norm(mcts.action_visits[episode_root_state].flatten(), 0))
-			if mcts.action_visits[episode_root_state].sum() != 0:
-				normalized_visits = mcts.action_visits[episode_root_state]/mcts.action_visits[episode_root_state].sum()
-			else:
-				normalized_visits = mcts.action_visits[episode_root_state]
-			training_dataset.add([episode_root_state.adjacency, normalized_visits.flatten(), np.array(state_value)])
-			#print(state_value)
-			if episode_root_state.is_terminal():
-				reward = simulation.eval(episode_root_state.adjacency)/1000
-				#print('reward', reward)
-				for dataset in training_dataset.data[-episode:]:
-					dataset[-1] = np.array(reward) #update value in all datasets produced in this iteration
-			else:
-				#print(normalized_visits)
-				next_action = np.unravel_index(np.random.choice(n_nodes**2, p=normalized_visits.flatten()), shape=normalized_visits.shape)
-				episode_root_state = episode_root_state.transition(next_action)
+				for search in range(n_searches):
+					print(f'\riteration {iteration}, episode {episode}, level {n}, search {search}', end='')
+					mcts.search(root_state)
+
+				# update
+				#print('\nexploration:', np.linalg.norm(mcts.action_visits[root_state].flatten(), 0))
+				if mcts.action_visits[root_state].sum() != 0:
+					normalized_visits = mcts.action_visits[root_state]/mcts.action_visits[root_state].sum()
+				else:
+					normalized_visits = mcts.action_visits[root_state]
+
+				training_dataset.add([root_state.adjacency, normalized_visits.flatten(), None])
+				#print(state_value)
+				if root_state.is_terminal():
+					reward = simulation.eval(root_state.adjacency)#/1000
+					#print('reward', reward)
+					for dataset in training_dataset.data[-episode:]:
+						dataset[-1] = np.array(reward) #update value in all datasets produced in this iteration
+				else:
+					#print(normalized_visits)
+					next_action = np.unravel_index(np.random.choice(n_nodes**2, p=normalized_visits.flatten()), shape=normalized_visits.shape)
+					root_state = root_state.transition(next_action)
+
+			#for s in max_trajectory:
+				#print(s.adjacency)
+				#print(mcts.action_visits[s])
 		print('\n')
 		for i in range(n_trainings):
 			dnn.train(training_dataset)
@@ -71,21 +74,20 @@ def drltc(simulation):
 		max_value = 0
 		for i in range(n_simulations):
 			state = State(np.zeros((n_nodes, n_nodes)))
-			trajectory = []
+			trajectory = [state]
 			while not state.is_terminal():
 				state_policy, _ = dnn.eval(state.adjacency)
 				state_policy[~state.get_valid_actions()] = 0 # set invalid actions to 0
 				state_policy /= state_policy.sum() # re-normalize over valid actions
 				next_action = np.unravel_index(np.random.choice(n_nodes**2, p=state_policy.flatten()), shape=state_policy.shape)
-				trajectory.append(next_action)
 				state = state.transition(next_action)
+				trajectory.append(state)
 			final_topology = state.adjacency
 			value = simulation.eval(final_topology)
 			lifetimes.append(value)
 			if (value > max_value):
 				max_value = value
 				max_trajectory = trajectory
-		print(max_value, max_trajectory)
 		statistics.append([sum(lifetimes)/n_simulations, max(lifetimes), min(lifetimes), max(lifetimes)-min(lifetimes)])
 		print(f'statistics: {statistics[-1]}')
 		#torch.save(lifetimes, f'lifetimes_iteration{iteration}.pt')
@@ -102,5 +104,6 @@ def drltc(simulation):
 
 if __name__ == '__main__':
 	simulation = Simulation(n_nodes)
+	#simulation.plot()
 	print(star_baseline(simulation))
 	drltc(simulation)
