@@ -5,6 +5,8 @@ import torchvision
 
 import torch.utils.data as data
 
+action_space_size = 100
+
 class PolicyBranch(nn.Module):
     def __init__(self, input_dim, in_channels, out_channels):
         super(PolicyBranch, self).__init__()
@@ -21,7 +23,7 @@ class PolicyBranch(nn.Module):
         x=self.act1(x)
         x=torch.flatten(x, 1)
         x=self.dense(x)
-        x=x*mask
+        x[~mask] = 0
         x=self.act2(x)
         return x
 
@@ -61,11 +63,11 @@ class Model(nn.Module):
         for i in range(8):
             self.resnet.append(torchvision.models.resnet.BasicBlock(256,256))
         self.resnet=nn.Sequential(*self.resnet)
-        self.policy_branch=PolicyBranch(input_dim, 256, 1024)
+        self.policy_branch=PolicyBranch(input_dim, 256, action_space_size)
         self.value_branch=ValueBranch(input_dim, 256)
         #nn.init.uniform_(self.value_branch.dense.weight)
-        #nn.init.constant_(self.value_branch.dense.bias, 1/1024)
-        #nn.init.uniform(self.policy_branch.dense.weight)
+        nn.init.uniform(self.value_branch.dense.bias)
+        nn.init.uniform(self.policy_branch.dense.weight)
 
     def forward(self, state, mask):
         out = self.resnet(state)
@@ -84,21 +86,23 @@ class DNN:
         self.model.train()
         dataloader = data.DataLoader(dataset, self.batch_size, shuffle=True)
         total_loss = 0
-        for batch, (state, policy, value, mask) in enumerate(dataloader):
+        for batch, (state, policy, value) in enumerate(dataloader):
 
+            mask = self.prepare_mask(state)
             state = state.float().cuda()
             policy = policy.float().cuda()
             value = value.float().cuda()
-            mask = mask.cuda()
 
             self.optimizer.zero_grad()
-            pred_policy, pred_value = self.model(state.unsqueeze(1), mask)
-            loss_policy = (policy * pred_policy.log()).sum(-1).mean()
-            loss_value = ((value-pred_value)**2).sum(1).mean()
+            pred_policy, pred_value = self.model(state.unsqueeze(1), mask) # add one channel to state
+            loss_policy = (policy * pred_policy.log()).sum()
+            loss_value = ((value-pred_value)**2).sum()
             loss = loss_value - loss_policy # + reg l2 norm of all params
             total_loss += loss
             #loss_policy.backward(retain_graph=True)
             loss.backward()
+
+            #print(policy[:25], pred_policy[:25])
 
             print(f'batch: {batch}, loss_policy: {loss_policy.cpu().data.numpy():.2f}, loss_value: {loss_value.cpu().data.numpy():.2f}')
 
@@ -107,18 +111,22 @@ class DNN:
         
     def eval(self, in_data):
         self.model.eval()
+        in_data = torch.from_numpy(in_data).unsqueeze(0)#put into batch
         mask = self.prepare_mask(in_data)
-        tensor = torch.tensor(in_data).cuda().float().unsqueeze(0).unsqueeze(0)
-        raw_policy, raw_value = self.model(tensor, mask)
+        tensor = in_data.float().cuda()
+        raw_policy, raw_value = self.model(tensor.unsqueeze(1), mask)
         #print(raw_policy, raw_value)
         #output policy dist is long vector, reshape to matrix
         return raw_policy.cpu().data.numpy()[:,:self.input_dim**2].reshape(self.input_dim, -1), raw_value.cpu().data.numpy()[-1,-1]
 
     def prepare_mask(self, state):
-        padded = np.zeros(1024)
-        mask = valid_actions(state).flatten()
-        padded[:mask.shape[0]] = mask
-        return torch.from_numpy(padded).cuda()
+        batch_size, n_nodes, _ = state.size()
+        padded = torch.zeros((batch_size, action_space_size), dtype=torch.bool)
+        not_connected = torch.all(state == 0, dim=1)
+        not_connected[:, 0] = False
+        mask = torch.einsum('ia,ib->iab', [~not_connected, not_connected]).flatten(start_dim=1)
+        padded[:, :n_nodes**2] = mask
+        return padded.cuda()
 
 class Dataset(data.Dataset):
 
@@ -128,13 +136,11 @@ class Dataset(data.Dataset):
     def __getitem__(self, idx):
         entry = self.data[-idx]
         state = entry[0]
-        policy = np.zeros(1024)
+        policy = np.zeros(action_space_size)
         policy[:len(entry[1])] = entry[1] #pad zeros
         value = np.zeros(1)
         value[0] = entry[2]#/1000
-        mask = np.zeros(1024)
-        mask[:len(entry[1])] = valid_actions(entry[0]).flatten()
-        return torch.from_numpy(state), torch.from_numpy(policy), torch.from_numpy(value), torch.from_numpy(mask)
+        return torch.from_numpy(state), torch.from_numpy(policy), torch.from_numpy(value)
 
     def __len__(self):
         return min(len(self.data), 100)
@@ -144,4 +150,5 @@ class Dataset(data.Dataset):
 
 def valid_actions(state):
     not_connected = np.all(state == 0, axis=0)
+    not_connected[0] = False
     return np.outer(~not_connected, not_connected)

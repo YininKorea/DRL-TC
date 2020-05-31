@@ -15,8 +15,8 @@ n_iterations = 100
 n_episodes = 1
 n_searches = 100
 n_simulations = 20
-n_trainings = 1
-exploration_level = 1000
+n_trainings = 10
+exploration_level = 5
 
 def star_baseline(simulation):
 	G = nx.generators.classic.star_graph(n_nodes-1)
@@ -37,27 +37,28 @@ def drltc(simulation):
 
 			for n in range(n_nodes):
 
-				mcts = MCTS(root_state.shape, dnn, simulation, exploration_level)
-
-				for search in range(n_searches):
-					print(f'\riteration {iteration}, episode {episode}, level {n}, search {search}', end='')
-					mcts.search(root_state)
-
-				# update
-				#print('\nexploration:', np.linalg.norm(mcts.action_visits[root_state].flatten(), 0))
-				if mcts.action_visits[root_state].sum() != 0:
-					normalized_visits = mcts.action_visits[root_state]/mcts.action_visits[root_state].sum()
-				else:
-					normalized_visits = mcts.action_visits[root_state]
-
-				training_dataset.add([root_state.adjacency, normalized_visits.flatten(), None])
-				#print(state_value)
+				
 				if root_state.is_terminal():
-					reward = simulation.eval(root_state.adjacency)#/1000
+					reward = simulation.eval(root_state.adjacency)/1000
 					#print('reward', reward)
-					for dataset in training_dataset.data[-episode:]:
+					for dataset in training_dataset.data[-n:]:
 						dataset[-1] = np.array(reward) #update value in all datasets produced in this iteration
-				else:
+				else:	
+
+					mcts = MCTS(root_state.shape, dnn, simulation, exploration_level)
+
+					for search in range(n_searches):
+						print(f'\riteration {iteration}, episode {episode}, level {n}, search {search}', end='')
+						mcts.search(root_state)
+
+					# update
+					print('\nexploration:', np.linalg.norm(mcts.action_visits[root_state].flatten(), 0))
+					if mcts.action_visits[root_state].sum() != 0:
+						normalized_visits = mcts.action_visits[root_state]/mcts.action_visits[root_state].sum()
+					else:
+						normalized_visits = mcts.action_visits[root_state]
+
+					training_dataset.add([root_state.adjacency, normalized_visits.flatten(), None])
 					#print(normalized_visits)
 					next_action = np.unravel_index(np.random.choice(n_nodes**2, p=normalized_visits.flatten()), shape=normalized_visits.shape)
 					root_state = root_state.transition(next_action)
@@ -77,6 +78,7 @@ def drltc(simulation):
 			trajectory = [state]
 			while not state.is_terminal():
 				state_policy, _ = dnn.eval(state.adjacency)
+				#print(state_policy)
 				state_policy[~state.get_valid_actions()] = 0 # set invalid actions to 0
 				state_policy /= state_policy.sum() # re-normalize over valid actions
 				next_action = np.unravel_index(np.random.choice(n_nodes**2, p=state_policy.flatten()), shape=state_policy.shape)
@@ -92,7 +94,7 @@ def drltc(simulation):
 		print(f'statistics: {statistics[-1]}')
 		#torch.save(lifetimes, f'lifetimes_iteration{iteration}.pt')
 
-		if iteration%10 == 0 and iteration != 0:
+		if iteration%30 == 0 and iteration != 0:
 			statistics_np = np.array(statistics)
 			plt.plot(statistics_np[:,0])
 			plt.plot(statistics_np[:,1])
