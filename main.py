@@ -121,5 +121,5 @@ if __name__ == '__main__':
 	simulation = Simulation(n_nodes, )
 	#simulation.plot()
 	print(star_baseline(simulation))
-	print(mst_baseline(simulation))
+	#print(mst_baseline(simulation))
 	drltc(simulation)
