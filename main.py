@@ -26,13 +26,23 @@ def star_baseline(simulation):
 	return simulation.eval(topology)
 
 def mst_baseline(simulation):
-	G=nx.Graph()
+	# FIXME: MST baseline has worse lifetime than star baseline
+	G = nx.DiGraph()
 	for index, value in np.ndenumerate(simulation.node_distances):
-		G.add_edge(*index, weight=value)
-	T = nx.minimum_spanning_tree(G)
-	print(nx.adjacency_matrix(T))
+		is_to_gateway = index[1] == 0
+		if is_to_gateway:
+			weight = float('inf')
+		else:
+			weight = value
+		G.add_edge(*index, weight=weight)
+	T = nx.minimum_spanning_arborescence(G, "weight")
+
 	topology = nx.convert_matrix.to_numpy_array(T)
-	return simulation.eval(topology)
+	to_adjacency = lambda x: 1.0 if x > 0 else 0.0
+	v_func = np.vectorize(to_adjacency)
+	adjacency = v_func(topology)
+
+	return simulation.eval(adjacency)
 
 def drltc(simulation, reward_bound=1000):
 	training_dataset = Dataset()
@@ -121,5 +131,5 @@ if __name__ == '__main__':
 	simulation = Simulation(n_nodes, )
 	#simulation.plot()
 	print(star_baseline(simulation))
-	#print(mst_baseline(simulation))
+	print(mst_baseline(simulation))
 	drltc(simulation)
