@@ -5,7 +5,7 @@ import torchvision
 
 import torch.utils.data as data
 
-action_space_size = 100
+action_space_size = 1024
 
 class PolicyBranch(nn.Module):
     def __init__(self, input_dim, in_channels, out_channels):
@@ -66,8 +66,8 @@ class Model(nn.Module):
         self.policy_branch=PolicyBranch(input_dim, 256, action_space_size)
         self.value_branch=ValueBranch(input_dim, 256)
         #nn.init.uniform_(self.value_branch.dense.weight)
-        nn.init.uniform(self.value_branch.dense.bias)
-        nn.init.uniform(self.policy_branch.dense.weight)
+        nn.init.uniform_(self.value_branch.dense.bias)
+        nn.init.uniform_(self.policy_branch.dense.weight)
 
     def forward(self, state, mask):
         out = self.resnet(state)
@@ -99,6 +99,7 @@ class DNN:
             loss_value = ((value-pred_value)**2).sum()
             loss = loss_value - loss_policy # + reg l2 norm of all params
             total_loss += loss
+            # normalize loss if batch is not full?!
             #loss_policy.backward(retain_graph=True)
             loss.backward()
 
@@ -143,7 +144,7 @@ class Dataset(data.Dataset):
         return torch.from_numpy(state), torch.from_numpy(policy), torch.from_numpy(value)
 
     def __len__(self):
-        return min(len(self.data), 100)
+        return len(self.data)#min(len(self.data), 100)
 
     def add(self, data):
         self.data.append(data)
