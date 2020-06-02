@@ -26,7 +26,7 @@ def star_baseline(simulation):
 
 def mst_baseline(simulation):
 	# FIXME: MST baseline has worse lifetime than star baseline, maybe error in original paper?
-	G = nx.DiGraph()
+	G = nx.Graph()
 	for index, value in np.ndenumerate(simulation.node_distances):
 		G.add_edge(*index, weight=value)
 	T = nx.minimum_spanning_tree(G)
