@@ -10,7 +10,7 @@ import random
 import torch
 
 
-n_nodes = 5
+n_nodes = 20
 n_iterations = 100
 n_episodes = 10
 n_searches = 100
@@ -20,19 +20,27 @@ exploration_level = 5
 
 def star_baseline(simulation):
 	G = nx.generators.classic.star_graph(n_nodes-1)
-	topology = nx.convert_matrix.to_numpy_array(G)
-	topology[:,0] = 0
-	print(topology)
-	return simulation.eval(topology)
+	T = nx.bfs_tree(G, 0)
+	topology = nx.convert_matrix.to_numpy_array(T)
+	return simulation.eval(topology), T
 
 def mst_baseline(simulation):
 	G=nx.Graph()
 	for index, value in np.ndenumerate(simulation.node_distances):
 		G.add_edge(*index, weight=value)
 	T = nx.minimum_spanning_tree(G)
-	print(nx.adjacency_matrix(T))
+	T = nx.bfs_tree(T, 0)
 	topology = nx.convert_matrix.to_numpy_array(T)
-	return simulation.eval(topology)
+	return simulation.eval(topology), T
+
+def random_baseline(simulation, n_simulations):
+	lifetimes = []
+	for i in range(n_simulations):
+		G = nx.generators.trees.random_tree(n_nodes)
+		T = nx.bfs_tree(G, 0)
+		topology = nx.convert_matrix.to_numpy_array(T)
+		lifetimes.append(simulation.eval(topology))
+	return sum(lifetimes)/n_simulations, max(lifetimes), min(lifetimes), max(lifetimes)-min(lifetimes)
 
 def drltc(simulation, reward_bound=1000):
 	training_dataset = Dataset()
@@ -104,7 +112,7 @@ def drltc(simulation, reward_bound=1000):
 				max_topology = final_topology
 		statistics.append([sum(lifetimes)/n_simulations, max(lifetimes), min(lifetimes), max(lifetimes)-min(lifetimes)])
 		print(f'statistics: {statistics[-1]}')
-		print(max_topology)
+		#print(max_topology)
 		#torch.save(lifetimes, f'lifetimes_iteration{iteration}.pt')
 
 		if iteration%10 == 0 and iteration != 0:
@@ -118,8 +126,11 @@ def drltc(simulation, reward_bound=1000):
 	#torch.save(dnn.model.state_dict, 'model_checkpoint_2.pt')
 
 if __name__ == '__main__':
-	simulation = Simulation(n_nodes, )
+	simulation = Simulation(n_nodes)
 	#simulation.plot()
 	print(star_baseline(simulation))
-	#print(mst_baseline(simulation))
+	print(mst_baseline(simulation))
+	print(random_baseline(simulation, n_simulations))
+	#nx.draw(T, pos=simulation.node_positions)
+	#plt.show()
 	drltc(simulation)
