@@ -7,6 +7,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
 import random
+import os
 import torch
 
 
@@ -15,8 +16,9 @@ n_iterations = 100
 n_episodes = 1
 n_searches = 100
 n_simulations = 50
-n_trainings = 1
+n_trainings = 5
 exploration_level = 5000
+experiment = 'multiple_trainings'
 
 def star_baseline(simulation):
 	G = nx.generators.classic.star_graph(n_nodes-1)
@@ -114,7 +116,6 @@ def drltc(simulation):
 		statistics.append([sum(lifetimes)/n_simulations, max(lifetimes), min(lifetimes), max(lifetimes)-min(lifetimes)])
 		print(f'statistics: {statistics[-1]}')
 		#print(max_topology)
-		#torch.save(lifetimes, f'lifetimes_iteration{iteration}.pt')
 
 		if iteration%10 == 0 and iteration != 0:
 			print(star_baseline(simulation))
@@ -126,10 +127,17 @@ def drltc(simulation):
 			plt.plot(statistics_np[:,2])
 			plt.ylabel('lifetime')
 			plt.xlabel('iteration')
-			plt.show()
-	#torch.save(dnn.model.state_dict, 'model_checkpoint_2.pt')
+			plt.savefig(f'{experiment}/ckp_{experiment}_n{n_nodes}_e{n_episodes}_s{n_searches}_sim{n_simulations}_t{n_trainings}_i{iteration}.png')
+			torch.save(dnn.model.state_dict, f'{experiment}/ckp_{experiment}_n{n_nodes}_e{n_episodes}_s{n_searches}_sim{n_simulations}_t{n_trainings}_i{iteration}.pt')
+
+def check_dir():
+	if os.path.isdir(f'./{experiment}'):
+		raise Exception('Experiment exists')
+	else:
+		os.mkdir(f'./{experiment}')
 
 if __name__ == '__main__':
+	check_dir()
 	simulation = Simulation(n_nodes)
 	#simulation.plot()
 	print(star_baseline(simulation))
