@@ -19,7 +19,6 @@ class Simulation():
 	def eval(self, topology):
 		node_values = np.zeros(self.n_nodes)
 		self.aggregate(0, node_values, topology)
-		#dist_to_parent = np.array([self.dist(self.node_positions[n], self.node_positions[np.argmax(topology[:,n])]) for n in range(self.n_nodes)])
 		dist_to_parent = self.node_distances[range(self.n_nodes), np.argmax(topology, axis=0)]
 		energy_consumption = (self.rho * dist_to_parent**2 + self.e_p) * node_values
 		battery_lifetime = self.initial_energy / energy_consumption
@@ -33,9 +32,6 @@ class Simulation():
 			data_size += self.aggregate(child, node_values, topology)
 		node_values[node_idx] = data_size
 		return data_size
-
-	def dist(self, n1, n2):
-		return ((n1[0]-n2[0])**2 + (n1[1]-n2[1])**2)**0.5
 
 	def scatter_nodes(self, n_nodes, radius):
 		nodes = []

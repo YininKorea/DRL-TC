@@ -10,13 +10,13 @@ import random
 import torch
 
 
-n_nodes = 20
+n_nodes = 5
 n_iterations = 100
-n_episodes = 10
+n_episodes = 1
 n_searches = 100
-n_simulations = 100
-n_trainings = 10
-exploration_level = 5
+n_simulations = 50
+n_trainings = 1
+exploration_level = 5000
 
 def star_baseline(simulation):
 	G = nx.generators.classic.star_graph(n_nodes-1)
@@ -43,7 +43,7 @@ def random_baseline(simulation, n_simulations):
 		lifetimes.append(simulation.eval(topology))
 	return sum(lifetimes)/n_simulations, max(lifetimes), min(lifetimes), max(lifetimes)-min(lifetimes)
 
-def drltc(simulation, reward_bound=1000):
+def drltc(simulation):
 	training_dataset = Dataset()
 	dnn = DNN(n_nodes, minibatch=16, learning_rate=1e-6)
 	statistics = []
@@ -58,13 +58,13 @@ def drltc(simulation, reward_bound=1000):
 			for n in range(n_nodes):
 				
 				if root_state.is_terminal():
-					reward = simulation.eval(root_state.adjacency)/reward_bound
+					reward = simulation.eval(root_state.adjacency)
 					#print('reward', reward)
 					for dataset in training_dataset.data[-n:]:
 						dataset[-1] = np.array(reward) #update value in all datasets produced in this iteration
 				else:	
 
-					mcts = MCTS(root_state.shape, dnn, simulation, exploration_level, reward_bound)
+					mcts = MCTS(root_state.shape, dnn, simulation, exploration_level)
 					#TODO keep subtrees?
 
 					for search in range(n_searches):
@@ -117,6 +117,9 @@ def drltc(simulation, reward_bound=1000):
 		#torch.save(lifetimes, f'lifetimes_iteration{iteration}.pt')
 
 		if iteration%10 == 0 and iteration != 0:
+			print(star_baseline(simulation))
+			print(mst_baseline(simulation))
+			print(random_baseline(simulation, n_simulations))
 			statistics_np = np.array(statistics)
 			plt.plot(statistics_np[:,0])
 			plt.plot(statistics_np[:,1])

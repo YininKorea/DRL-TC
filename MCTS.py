@@ -4,7 +4,7 @@ from functools import partial
 
 class MCTS:
 
-	def __init__(self, state_shape, dnn, simulation, exploration_level, reward_bound):
+	def __init__(self, state_shape, dnn, simulation, exploration_level):
 		self.Q = ddict(partial(np.zeros, state_shape))
 		self.pi = dict()
 		self.visits = dict()
@@ -12,12 +12,10 @@ class MCTS:
 		self.dnn = dnn
 		self.simulation = simulation
 		self.exploration_level = exploration_level
-		self.reward_bound = reward_bound
 
 	def search(self, state):
 		if state.is_terminal():
-			reward = self.simulation.eval(state.adjacency)/self.reward_bound
-			#_, reward = self.dnn.eval(state.adjacency)
+			reward = self.simulation.eval(state.adjacency)
 			return reward
 
 		if state not in self.visits:
