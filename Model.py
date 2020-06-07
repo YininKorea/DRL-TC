@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 import torchvision
-
+import utils
 import torch.utils.data as data
 
 action_space_size = 1024
@@ -73,13 +73,17 @@ class DNN:
         self.batch_size = minibatch
         self.model = Model(input_dim).float().cuda()
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
+        #self.optimizer = get_instance(torch.optim, 'optimizer', config, trainable_params)
+        #self.lr_scheduler = getattr(utils.lr_scheduler, 'poly')(self.optimizer, self.epochs, len(train_loader))
 
-    def train(self, dataset):
+    def train(self, dataset,epoch):
         self.model.train()
+
         dataloader = data.DataLoader(dataset, self.batch_size, shuffle=True)
+        self.lr_scheduler = getattr(utils.lr_scheduler, 'Poly')(self.optimizer,5, len(dataloader))
         total_loss = 0
         for batch, (state, policy, value) in enumerate(dataloader):
-
+            self.lr_scheduler.step(epoch=epoch - 1)
             state = state.float().cuda()
             policy = policy.float().cuda()
             value = value.float().cuda()
