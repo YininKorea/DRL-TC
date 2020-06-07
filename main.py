@@ -95,7 +95,7 @@ def drltc(simulation):
 				#print(mcts.action_visits[s])
 		print('\n')
 		for i in range(n_trainings):
-			dnn.train(training_dataset)
+			dnn.train(training_dataset,epoch=i)
 
 		lifetimes = []
 		max_value = 0
@@ -162,32 +162,7 @@ def check_dir():
 		os.mkdir('./Topology_visualization')
 
 
-def iterative_topology(final_topology,iteration):
-	G = nx.DiGraph()
-	edge_x, edge_y = np.where(final_topology)
 
-
-	edge_list = []
-	for x, y in zip(edge_x, edge_y):
-		edge_list.append((y, x))
-	G.add_edges_from(edge_list)
-	color_map=['blue' for node in G.nodes]
-	print(color_map)
-	nx.draw(G, pos=simulation.node_positions,node_color=color_map, with_labels=True)
-	plt.savefig('./'+str(iteration)+'.png')
-	plt.close()
-
-
-	movements=np.array(simulation.node_positions)
-	movements[0]=movements[0]*1.78-45
-	label=movements==simulation.node_positions
-	for idx,coor in label:
-		if not coor:
-			color_map[idx]='red'
-	nx.draw(G,pos=movements,node_color=color_map,with_labels=True)
-	plt.savefig('./'+str(iteration)+'_movements.png')
-	plt.close()
-	return 0
 
 if __name__ == '__main__':
 	check_dir()
