@@ -12,7 +12,7 @@ import torch
 
 
 n_nodes = 5
-n_iterations = 20
+n_iterations = 3
 n_episodes = 1
 n_searches = 100
 n_simulations = 50
@@ -58,6 +58,8 @@ def drltc(simulation):
 		G.add_nodes_from([i for i in range(n_nodes)])
 		nx.draw(G,pos=simulation.node_positions,color_map=color_map,with_labels=True)
 		plt.savefig('./Topology_visualization/iteration_'+str(iteration+1)+'_initial.png')
+		plt.close()
+		G.clear()
 		for episode in range(n_episodes):
 			
 			root_state = State(np.zeros((n_nodes, n_nodes)))
@@ -121,7 +123,7 @@ def drltc(simulation):
 		print(f'statistics: {statistics[-1]}')
 
 		edge_x, edge_y = np.where(final_topology)
-
+		G=nx.DiGraph()
 		edge_list = []
 		for x, y in zip(edge_x, edge_y):
 			edge_list.append((y, x))
@@ -136,6 +138,7 @@ def drltc(simulation):
 		for idx, coor in label:
 			if not coor:
 				color_map[idx] = 'red'
+
 		nx.draw(G, pos=movements, node_color=color_map, with_labels=True)
 		plt.savefig('./Topology_visualization/iteration_' + str(iteration+1) + '_movements.png')
 		plt.close()
