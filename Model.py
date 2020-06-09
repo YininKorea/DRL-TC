@@ -16,7 +16,7 @@ class PolicyBranch(nn.Module):
         self.act1=nn.ReLU()
         self.dense=nn.Linear(input_dim**2*256, out_channels)
         self.act2=nn.Softmax(dim=-1)
-
+        
     def forward(self, x):
         x=self.conv(x)
         x=self.norm(x)
