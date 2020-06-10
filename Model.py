@@ -68,11 +68,15 @@ class Model(nn.Module):
         return policy, value
 
 class DNN:
-    def __init__(self, input_dim, minibatch, learning_rate):
+    def __init__(self, input_dim, minibatch, args):
         self.input_dim = input_dim
         self.batch_size = minibatch
         self.model = Model(input_dim).float().cuda()
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
+        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=args.lr_max)
+        lr_steps = args.n_iterations * args.n_trainings 
+        if args.lr_schedule == 'cyclic':
+            self.scheduler = torch.optim.lr_scheduler.CyclicLR(self.optimizer, base_lr=args.lr_min, max_lr=args.lr_max,
+                step_size_up=lr_steps / 2, step_size_down=lr_steps / 2)
 
     def train(self, dataset):
         self.model.train()
@@ -86,7 +90,7 @@ class DNN:
 
             pred_policy, pred_value = self.model(state.unsqueeze(1)) # add one channel to state
             loss_policy = (policy * pred_policy.log()).sum(dim=-1).mean()
-            loss_value = ((value-pred_value)**2).sum(dim=-1).mean()
+            loss_value = ((value-pred_value).abs()).sum(dim=-1).mean()
             loss = loss_value - loss_policy # + reg l2 norm of all params
             total_loss += loss
             # normalize loss if batch is not full?!
@@ -95,6 +99,8 @@ class DNN:
             self.optimizer.step()
 
             print(f'batch: {batch}, loss_policy: {loss_policy.cpu().data.numpy():.2f}, loss_value: {loss_value.cpu().data.numpy():.2f}')
+        if self.scheduler:
+            self.scheduler.step()
         print(f'loss: {total_loss/(batch+1)}')
         return total_loss/(batch+1)
         

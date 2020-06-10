@@ -21,7 +21,7 @@ def get_args():
     parser.add_argument('--n-trainings', default=1, type=int)
     parser.add_argument('--exploration-level', default=5000, type=int)
     parser.add_argument('--lr-schedule', default='constant', choices=['cyclic', 'constant'])
-    parser.add_argument('--lr-min', default=0., type=float)
+    parser.add_argument('--lr-min', default=1e-6, type=float)
     parser.add_argument('--lr-max', default=1e-3, type=float)
     parser.add_argument('--seed', default=0, type=int, help='Random seed')
     return parser.parse_args()
@@ -53,7 +53,7 @@ def random_baseline(simulation, n_simulations, n_nodes):
 
 def drltc(simulation, logger, args):
 	training_dataset = Dataset()
-	dnn = DNN(args.n_nodes, minibatch=16, learning_rate=1e-6)
+	dnn = DNN(args.n_nodes, minibatch=16, args=args)
 	statistics = []
 	random_statistics = []
 	max_trajectory = []
@@ -134,7 +134,7 @@ def drltc(simulation, logger, args):
 		print(f'statistics: {statistics[-1]}')
 
 		stop_iteration_time = time.time()
-		logger.info(f'{iteration} \t\t {stop_iteration_time-start_iteration_time:.1f} \t {avg_loss:.2f} \t {statistics[-1][0]:.2f} \t {statistics[-1][-1]:.2f}')
+		logger.info(f'{iteration} \t\t\t {stop_iteration_time-start_iteration_time:.1f} \t\t\t {avg_loss:.2f} \t {statistics[-1][0]:.2f} \t {statistics[-1][-1]:.2f}')
 		#print(max_topology)
 
 		if iteration%10 == 0 and iteration != 0:
