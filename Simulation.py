@@ -45,3 +45,9 @@ class Simulation():
 		x, y = zip(*self.node_positions)
 		plt.scatter(x,y)
 		plt.show()
+
+	def save_plot(self, name):
+		x, y = zip(*self.node_positions)
+		plt.scatter(x,y)
+		plt.savefig(name)
+		plt.clf()
