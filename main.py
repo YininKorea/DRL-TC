@@ -5,7 +5,9 @@ from Simulation import Simulation
 import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
-import random, os, torch, argparse, yaml
+import random, os, torch, argparse, yaml, time, logging
+
+logger = logging.getLogger(__name__)
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -49,14 +51,23 @@ def random_baseline(simulation, n_simulations, n_nodes):
 	lifetimes = np.array(lifetimes)
 	return [lifetimes.mean(), lifetimes.max(), lifetimes.min(), lifetimes.std()]
 
-def drltc(simulation, args):
+def drltc(simulation, logger, args):
 	training_dataset = Dataset()
 	dnn = DNN(args.n_nodes, minibatch=16, learning_rate=1e-6)
 	statistics = []
 	random_statistics = []
 	max_trajectory = []
 
+	star, _ = star_baseline(simulation, args.n_nodes)
+	mst, _ = mst_baseline(simulation)
+	random = random_baseline(simulation, args.n_simulations, args.n_nodes)
+	logger.info(f'baseline lifetime: star {star:.2f}, mst {mst:.2f}, random {random[0]:.2f}+-{random[-1]:.2f}')
+
+	start_training_time = time.time()
+	logger.info(f'iteration \t duration [s] \t DNN loss \t lt mean \t lt std')
+
 	for iteration in range(args.n_iterations):
+		start_iteration_time = time.time()
 
 		for episode in range(args.n_episodes):
 			
@@ -91,8 +102,10 @@ def drltc(simulation, args):
 					root_state = root_state.transition(next_action)
 
 		print('\n')
+		avg_loss = 0
 		for i in range(args.n_trainings):
-			dnn.train(training_dataset)
+			avg_loss += dnn.train(training_dataset)
+		avg_loss /= args.n_trainings
 
 		# construct test topologies
 		lifetimes = []
@@ -119,6 +132,9 @@ def drltc(simulation, args):
 		statistics.append([lifetimes.mean(), lifetimes.max(), lifetimes.min(), lifetimes.std()])
 		random_statistics.append(random_baseline(simulation, args.n_simulations, args.n_nodes))
 		print(f'statistics: {statistics[-1]}')
+
+		stop_iteration_time = time.time()
+		logger.info(f'{iteration} \t\t {stop_iteration_time-start_iteration_time:.1f} \t {avg_loss:.2f} \t {statistics[-1][0]:.2f} \t {statistics[-1][-1]:.2f}')
 		#print(max_topology)
 
 		if iteration%10 == 0 and iteration != 0:
@@ -139,6 +155,8 @@ def drltc(simulation, args):
 			plt.savefig(f'{args.experiment}/ckp_{args.experiment}_n{args.n_nodes}_e{args.n_episodes}_s{args.n_searches}_sim{args.n_simulations}_t{args.n_trainings}_i{iteration}.png')
 			plt.clf()
 			torch.save(dnn.model.state_dict, f'{args.experiment}/ckp_{args.experiment}_n{args.n_nodes}_e{args.n_episodes}_s{args.n_searches}_sim{args.n_simulations}_t{args.n_trainings}_i{iteration}.pt')
+	stop_training_time = time.time()
+	logger.info(f'total time: {(stop_training_time-start_training_time)/60:.4f} minutes')
 
 def check_dir(args):
 	if os.path.isdir(f'./{args.experiment}'):
@@ -148,13 +166,18 @@ def check_dir(args):
 			raise Exception('Experiment exists')
 	else:
 		os.mkdir(f'./{args.experiment}')
-	with open((f'./{args.experiment}/args.yaml'), 'w') as file:
-		yaml.dump(args, file)
-
 
 if __name__ == '__main__':
 	args = get_args()
 	check_dir(args)
+
+	logging.basicConfig(
+		format='[%(asctime)s] - %(message)s',
+		datefmt='%Y/%m/%d %H:%M:%S',
+		level=logging.INFO,
+		filename=os.path.join(args.experiment, 'output.log'))
+	logger.info(args)
+
 	simulation = Simulation(args.n_nodes)
 	simulation.save_plot(f'{args.experiment}/node_init.png')
 	#_,star = star_baseline(simulation)
@@ -165,4 +188,4 @@ if __name__ == '__main__':
 	#plt.show()
 	#nx.draw(mst, pos=simulation.node_positions)
 	#plt.show()
-	drltc(simulation, args)
+	drltc(simulation, logger, args)

@@ -96,6 +96,7 @@ class DNN:
 
             print(f'batch: {batch}, loss_policy: {loss_policy.cpu().data.numpy():.2f}, loss_value: {loss_value.cpu().data.numpy():.2f}')
         print(f'loss: {total_loss/(batch+1)}')
+        return total_loss/(batch+1)
         
     def eval(self, in_data):
         self.model.eval()
