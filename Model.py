@@ -5,6 +5,8 @@ import torchvision
 
 import torch.utils.data as data
 
+from collections import deque
+
 action_space_size = 1024
 
 class PolicyBranch(nn.Module):
@@ -77,6 +79,8 @@ class DNN:
         if args.lr_schedule == 'cyclic':
             self.scheduler = torch.optim.lr_scheduler.CyclicLR(self.optimizer, base_lr=args.lr_min, max_lr=args.lr_max,
                 step_size_up=lr_steps / 2, step_size_down=lr_steps / 2)
+        else:
+            self.scheduler = None
 
     def train(self, dataset):
         self.model.train()
@@ -115,8 +119,17 @@ class DNN:
 
 class Dataset(data.Dataset):
 
-    def __init__(self):
-        self.data = []
+    def __init__(self, args):
+        self.iterationsize = args.n_episodes*args.n_nodes
+        self.size_max = args.dataset_window_max
+        self.size= args.dataset_window_min
+        if args.dataset_window_schedule == 'slide':
+            maxlen = self.iterationsize*args.dataset_window_max
+        elif args.dataset_window_schedule == 'slide':
+            maxlen = self.iterationsize*args.dataset_window_min
+        else:
+            maxlen = None
+        self.data = deque(maxlen=maxlen)
 
     def __getitem__(self, idx):
         entry = self.data[idx]
@@ -128,7 +141,12 @@ class Dataset(data.Dataset):
         return torch.from_numpy(state), torch.from_numpy(policy), torch.from_numpy(value)
 
     def __len__(self):
-        return len(self.data)#min(len(self.data), 100)
+        return len(self.data)
+
+    def step(self):
+        if self.size < self.size_max:
+            self.size += 1
+            self.data = deque(self.data, maxlen=self.iterationsize*self.size)
 
     def add(self, data):
         self.data.append(data)

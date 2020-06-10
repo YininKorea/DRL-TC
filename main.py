@@ -19,6 +19,9 @@ def get_args():
     parser.add_argument('--n-searches', default=50, type=int)
     parser.add_argument('--n-simulations', default=50, type=int)
     parser.add_argument('--n-trainings', default=1, type=int)
+    parser.add_argument('--dataset-window-min', default=1, type=int)
+    parser.add_argument('--dataset-window-max', default=20, type=int)
+    parser.add_argument('--dataset-window-schedule', default='none', choices=['slide-scale', 'slide', 'none'])
     parser.add_argument('--exploration-level', default=5000, type=int)
     parser.add_argument('--lr-schedule', default='constant', choices=['cyclic', 'constant'])
     parser.add_argument('--lr-min', default=1e-6, type=float)
@@ -52,7 +55,7 @@ def random_baseline(simulation, n_simulations, n_nodes):
 	return [lifetimes.mean(), lifetimes.max(), lifetimes.min(), lifetimes.std()]
 
 def drltc(simulation, logger, args):
-	training_dataset = Dataset()
+	training_dataset = Dataset(args)
 	dnn = DNN(args.n_nodes, minibatch=16, args=args)
 	statistics = []
 	random_statistics = []
@@ -64,7 +67,7 @@ def drltc(simulation, logger, args):
 	logger.info(f'baseline lifetime: star {star:.2f}, mst {mst:.2f}, random {random[0]:.2f}+-{random[-1]:.2f}')
 
 	start_training_time = time.time()
-	logger.info(f'iteration \t duration [s] \t DNN loss \t lt mean \t lt std')
+	logger.info(f'iteration \t duration [s] \t DNN loss \t lt mean \t lt std \t lr \t window')
 
 	for iteration in range(args.n_iterations):
 		start_iteration_time = time.time()
@@ -78,8 +81,8 @@ def drltc(simulation, logger, args):
 				if root_state.is_terminal():
 					reward = simulation.eval(root_state.adjacency)
 					#print('reward', reward)
-					for dataset in training_dataset.data[-n:]:
-						dataset[-1] = np.array(reward) #update value in all datasets produced in this iteration
+					for index in range(1,n+1):
+						training_dataset.data[-index][-1] = np.array(reward) #update value in all datasets produced in this iteration
 				else:	
 
 					mcts = MCTS(root_state.shape, dnn, simulation, args.exploration_level)
@@ -102,10 +105,14 @@ def drltc(simulation, logger, args):
 					root_state = root_state.transition(next_action)
 
 		print('\n')
+		print(training_dataset.size)
 		avg_loss = 0
 		for i in range(args.n_trainings):
 			avg_loss += dnn.train(training_dataset)
 		avg_loss /= args.n_trainings
+
+		if args.dataset_window_schedule == 'slide-scale' and iteration%2 == 0:
+			training_dataset.step()
 
 		# construct test topologies
 		lifetimes = []
@@ -134,7 +141,11 @@ def drltc(simulation, logger, args):
 		print(f'statistics: {statistics[-1]}')
 
 		stop_iteration_time = time.time()
-		logger.info(f'{iteration} \t\t\t {stop_iteration_time-start_iteration_time:.1f} \t\t\t {avg_loss:.2f} \t {statistics[-1][0]:.2f} \t {statistics[-1][-1]:.2f}')
+		if args.lr_schedule == 'cyclic':
+			lr = dnn.scheduler.get_lr()[0]
+		else:
+			lr = args.lr_max
+		logger.info(f'{iteration} \t\t\t {stop_iteration_time-start_iteration_time:.1f} \t\t\t {avg_loss:.2f} \t {statistics[-1][0]:.2f} \t {statistics[-1][-1]:.2f} \t {lr:.2e} \t {training_dataset.size}')
 		#print(max_topology)
 
 		if iteration%10 == 0 and iteration != 0:
