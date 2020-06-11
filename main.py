@@ -67,7 +67,7 @@ def drltc(simulation, logger, args):
 	logger.info(f'baseline lifetime: star {star:.2f}, mst {mst:.2f}, random {random[0]:.2f}+-{random[-1]:.2f}')
 
 	start_training_time = time.time()
-	logger.info(f'iteration \t duration [s] \t DNN loss \t lt mean \t lt std \t lr \t window')
+	logger.info(f'iteration \t duration [s] \t DNN loss \t lt mean \t lt std \t lr \t\t window size')
 
 	for iteration in range(args.n_iterations):
 		start_iteration_time = time.time()
@@ -105,14 +105,10 @@ def drltc(simulation, logger, args):
 					root_state = root_state.transition(next_action)
 
 		print('\n')
-		print(training_dataset.size)
 		avg_loss = 0
 		for i in range(args.n_trainings):
 			avg_loss += dnn.train(training_dataset)
 		avg_loss /= args.n_trainings
-
-		if args.dataset_window_schedule == 'slide-scale' and iteration%2 == 0:
-			training_dataset.step()
 
 		# construct test topologies
 		lifetimes = []
@@ -146,7 +142,8 @@ def drltc(simulation, logger, args):
 		else:
 			lr = args.lr_max
 		logger.info(f'{iteration} \t\t\t {stop_iteration_time-start_iteration_time:.1f} \t\t\t {avg_loss:.2f} \t {statistics[-1][0]:.2f} \t {statistics[-1][-1]:.2f} \t {lr:.2e} \t {training_dataset.size}')
-		#print(max_topology)
+		if args.dataset_window_schedule == 'slide-scale' and iteration%2 == 0:
+			training_dataset.step()
 
 		if iteration%10 == 0 and iteration != 0:
 			star, _ = star_baseline(simulation, args.n_nodes)
@@ -162,6 +159,7 @@ def drltc(simulation, logger, args):
 			plt.fill_between(x, random_statistics_np[:,0]-random_statistics_np[:,-1], random_statistics_np[:,0]+random_statistics_np[:,-1], alpha=0.5, linestyles='dotted')
 			plt.ylabel('lifetime')
 			plt.xlabel('iteration')
+			plt.title(f'{args.experiment}/ckp_{args.experiment}_n{args.n_nodes}')
 			plt.legend()
 			plt.savefig(f'{args.experiment}/ckp_{args.experiment}_n{args.n_nodes}_e{args.n_episodes}_s{args.n_searches}_sim{args.n_simulations}_t{args.n_trainings}_i{iteration}.png')
 			plt.clf()
