@@ -26,7 +26,7 @@ def get_args():
     parser.add_argument('--lr-schedule', default='constant', choices=['cyclic', 'constant'])
     parser.add_argument('--lr-min', default=1e-6, type=float)
     parser.add_argument('--lr-max', default=1e-3, type=float)
-    parser.add_argument('--seed', default=0, type=int, help='Random seed')
+    parser.add_argument('--seed', default='none', type=str, help='Random seed', choices=['none', 'original'])
     return parser.parse_args()
 
 def star_baseline(simulation, n_nodes):
@@ -187,7 +187,32 @@ if __name__ == '__main__':
 		filename=os.path.join(args.experiment, 'output.log'))
 	logger.info(args)
 
-	simulation = Simulation(args.n_nodes)
+	if args.seed == 'original':
+		original = np.array([
+			[-200, 750],
+			[-350, -800],
+			[-500, 200],
+			[450, 600],
+			[-950, -300],
+			[150, -950],
+			[-150, 400],
+			[50, 500],
+			[-200, 150],
+			[600, -250],
+			[200, -50],
+			[-300, -650],
+			[650, -500],
+			[300, -450],
+			[-600, 600],
+			[700, 450],
+			[-100, -200],
+			[-750, -250],
+			[-300, 400],
+			[150, 700]
+		])
+		simulation = Simulation(args.n_nodes, seed=original)
+	else:
+		simulation = Simulation(args.n_nodes)
 	simulation.save_plot(f'{args.experiment}/node_init.png')
 	#_,star = star_baseline(simulation)
 	#_,mst = mst_baseline(simulation)
