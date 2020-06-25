@@ -12,7 +12,7 @@ class Simulation():
 		self.datasize_range = datasize_range
 		self.e_p = e_p
 		self.rho = rho
-		if seed != None:
+		if seed is not None:
 			self.node_positions = seed
 		else:
 			self.node_positions = self.scatter_nodes(n_nodes, scatter_area_radius)
