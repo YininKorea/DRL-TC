@@ -35,7 +35,7 @@ class Simulation():
 			lifetime += 1
 			positions += directions
 			directions[np.linalg.norm(positions) >= self.scatter_area_radius] *= -1
-			directions = np.random.normal(size=(self.n_nodes, 2))+directions
+			directions += np.random.normal(size=(self.n_nodes, 2))
 			directions = directions/np.linalg.norm(directions)
 		return lifetime
 
@@ -60,6 +60,12 @@ class Simulation():
 		return vectors/np.linalg.norm(vectors)
 		#cluster
 		# generate direction for cluster
+
+	def step(self):
+		self.node_positions += self.directions
+		self.directions[np.linalg.norm(self.node_positions) >= self.scatter_area_radius] *= -1
+		self.directions += np.random.normal(size=(self.n_nodes, 2))
+		self.directions = self.directions/np.linalg.norm(self.directions)
 
 
 	def plot(self):

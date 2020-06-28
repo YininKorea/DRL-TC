@@ -147,8 +147,8 @@ def drltc(simulation, logger, args):
 		if args.dataset_window_schedule == 'slide-scale' and iteration%2 == 0:
 			training_dataset.step()
 
-		#if iteration%args.budget == 0 and iteration != 0:
-			#simulation.step()
+		if iteration%args.budget == 0 and iteration != 0:
+			simulation.step()
 
 		if iteration%10 == 0 and iteration != 0:
 			star, _ = star_baseline(simulation, args.n_nodes)
