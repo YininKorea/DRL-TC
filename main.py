@@ -22,11 +22,12 @@ def get_args():
     parser.add_argument('--dataset-window-min', default=1, type=int)
     parser.add_argument('--dataset-window-max', default=20, type=int)
     parser.add_argument('--dataset-window-schedule', default='none', choices=['slide-scale', 'slide', 'none'])
-    parser.add_argument('--exploration-level', default=5000, type=int)
+    parser.add_argument('--exploration-level', default=4, type=int)
     parser.add_argument('--lr-schedule', default='constant', choices=['cyclic', 'constant'])
     parser.add_argument('--lr-min', default=1e-6, type=float)
     parser.add_argument('--lr-max', default=1e-3, type=float)
-    parser.add_argument('--seed', default='none', type=str, help='Random seed', choices=['none', 'original'])
+    parser.add_argument('--original', action='store_true')
+    parser.add_argument('--seed', default=None, type=int)
     return parser.parse_args()
 
 def star_baseline(simulation, n_nodes):
@@ -79,7 +80,7 @@ def drltc(simulation, logger, args):
 			for n in range(args.n_nodes):
 				
 				if root_state.is_terminal():
-					reward = simulation.eval(root_state.adjacency)
+					reward = mcts.normalize_q(simulation.eval(root_state.adjacency))
 					#print('reward', reward)
 					for index in range(1,n+1):
 						training_dataset.data[-index][-1] = np.array(reward) #update value in all datasets produced in this iteration
@@ -145,6 +146,9 @@ def drltc(simulation, logger, args):
 		if args.dataset_window_schedule == 'slide-scale' and iteration%2 == 0:
 			training_dataset.step()
 
+		#if iteration%budget == 0 and iteration != 0:
+			#simulation.step()
+
 		if iteration%10 == 0 and iteration != 0:
 			star, _ = star_baseline(simulation, args.n_nodes)
 			mst, _ = mst_baseline(simulation)
@@ -187,8 +191,10 @@ if __name__ == '__main__':
 		filename=os.path.join(args.experiment, 'output.log'))
 	logger.info(args)
 
-	if args.seed == 'original':
-		original = np.array([
+	simulation = Simulation(args.n_nodes, seed=args.seed)
+
+	if args.original:
+		simulation.node_positions = np.array([
 			[-200, 750],
 			[-350, -800],
 			[-500, 200],
@@ -210,9 +216,8 @@ if __name__ == '__main__':
 			[-300, 400],
 			[150, 700]
 		])
-		simulation = Simulation(args.n_nodes, seed=original)
-	else:
-		simulation = Simulation(args.n_nodes)
+		simulation.node_distances = euclidean_distances(simulation.node_positions)
+		
 	simulation.save_plot(f'{args.experiment}/node_init.png')
 	#_,star = star_baseline(simulation)
 	#_,mst = mst_baseline(simulation)

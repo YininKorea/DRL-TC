@@ -6,16 +6,15 @@ from sklearn.metrics.pairwise import euclidean_distances
 class Simulation():
 
 	def __init__(self, n_nodes, scatter_area_radius=1000, initial_energy=1, datasize_range=(500, 1000), e_p=50e-9, rho=1e-12, seed=None):
+		random.seed(seed)
+		np.random.seed(seed)
 		self.n_nodes = n_nodes
 		self.scatter_area_radius = scatter_area_radius
 		self.initial_energy = initial_energy
 		self.datasize_range = datasize_range
 		self.e_p = e_p
 		self.rho = rho
-		if seed is not None:
-			self.node_positions = seed
-		else:
-			self.node_positions = self.scatter_nodes(n_nodes, scatter_area_radius)
+		self.node_positions = self.scatter_nodes(n_nodes, scatter_area_radius)
 		self.node_datasizes = np.random.randint(self.datasize_range[0], self.datasize_range[1], n_nodes)
 		self.node_distances = euclidean_distances(self.node_positions)
 

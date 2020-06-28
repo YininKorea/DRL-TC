@@ -94,7 +94,7 @@ class DNN:
 
             pred_policy, pred_value = self.model(state.unsqueeze(1)) # add one channel to state
             loss_policy = (policy * pred_policy.log()).sum(dim=-1).mean()
-            loss_value = ((value-pred_value).abs()).sum(dim=-1).mean()
+            loss_value = ((value-pred_value)**2).sum(dim=-1).mean()
             loss = loss_value - loss_policy # + reg l2 norm of all params
             total_loss += loss
             # normalize loss if batch is not full?!
@@ -125,7 +125,7 @@ class Dataset(data.Dataset):
         self.size= args.dataset_window_min
         if args.dataset_window_schedule == 'slide':
             maxlen = self.iterationsize*args.dataset_window_max
-        elif args.dataset_window_schedule == 'slide':
+        elif args.dataset_window_schedule == 'slide-scale':
             maxlen = self.iterationsize*args.dataset_window_min
         else:
             maxlen = None

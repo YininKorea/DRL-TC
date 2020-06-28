@@ -12,6 +12,8 @@ class MCTS:
 		self.dnn = dnn
 		self.simulation = simulation
 		self.exploration_level = exploration_level
+		self.Q_min = -1
+		self.Q_max = -1
 
 	def search(self, state):
 		if state.is_terminal():
@@ -37,11 +39,18 @@ class MCTS:
 
 		expected_value = self.search(next_state)
 
-		self.Q[state][next_action] = (self.action_visits[state][next_action] * self.Q[state][next_action] + expected_value) / (self.action_visits[state][next_action] + 1)
+		self.Q[state][next_action] = self.normalize_q((self.action_visits[state][next_action] * self.Q[state][next_action] + expected_value) / (self.action_visits[state][next_action] + 1))
 		self.action_visits[state][next_action] += 1
 		self.visits[state] += 1
 
 		return expected_value
+
+	def normalize_q(self, q):
+		if q < self.Q_min or self.Q_min == -1:
+			self.Q_min = q
+		if q > self.Q_max:
+			self.Q_max = q
+		return (q - self.Q_min) / ((self.Q_max - self.Q_min)+1e-15)
 
 
 class State:
