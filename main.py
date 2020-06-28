@@ -1,6 +1,6 @@
 from MCTS import MCTS, State
 from Model import DNN, Dataset
-from Simulation import Simulation
+from MovementSimulation import Simulation
 
 import networkx as nx
 import matplotlib.pyplot as plt
@@ -28,6 +28,7 @@ def get_args():
     parser.add_argument('--lr-max', default=1e-3, type=float)
     parser.add_argument('--original', action='store_true')
     parser.add_argument('--seed', default=None, type=int)
+    parser.add_argument('--budget', default=10, type=int)
     return parser.parse_args()
 
 def star_baseline(simulation, n_nodes):
@@ -146,7 +147,7 @@ def drltc(simulation, logger, args):
 		if args.dataset_window_schedule == 'slide-scale' and iteration%2 == 0:
 			training_dataset.step()
 
-		#if iteration%budget == 0 and iteration != 0:
+		#if iteration%args.budget == 0 and iteration != 0:
 			#simulation.step()
 
 		if iteration%10 == 0 and iteration != 0:
