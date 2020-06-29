@@ -4,7 +4,7 @@ from functools import partial
 
 class MCTS:
 
-	def __init__(self, state_shape, dnn, simulation, exploration_level):
+	def __init__(self, state_shape, dnn, simulation, exploration_level, movement_layers):
 		self.Q = ddict(partial(np.zeros, state_shape))
 		self.pi = dict()
 		self.visits = dict()
@@ -14,6 +14,7 @@ class MCTS:
 		self.exploration_level = exploration_level
 		self.Q_min = -1
 		self.Q_max = -1
+		self.movement_layers = movement_layers
 
 	def search(self, state):
 		if state.is_terminal():
@@ -21,7 +22,7 @@ class MCTS:
 			return reward
 
 		if state not in self.visits:
-			state_policy, state_value = self.dnn.eval(state.adjacency)
+			state_policy, state_value = self.dnn.eval(np.concatenate((state.adjacency[None,:,:], self.movement_layers)))
 			state_policy[~state.get_valid_actions()] = 0 # set invalid actions to 0
 			state_policy /= state_policy.sum() # re-normalize over valid actions
 			self.pi[state] = state_policy

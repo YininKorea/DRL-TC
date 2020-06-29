@@ -54,7 +54,7 @@ class Model(nn.Module):
         super(Model, self).__init__()
 
         self.resnet=[]
-        self.resnet.append(nn.Conv2d(1, 256, kernel_size=3, padding=1))
+        self.resnet.append(nn.Conv2d(3, 256, kernel_size=3, padding=1))
         self.resnet.append(nn.BatchNorm2d(256))
         self.resnet.append(nn.ReLU(inplace=True))
         for i in range(8):
@@ -92,7 +92,7 @@ class DNN:
             policy = policy.float().cuda()
             value = value.float().cuda()
 
-            pred_policy, pred_value = self.model(state.unsqueeze(1)) # add one channel to state
+            pred_policy, pred_value = self.model(state) # add one channel to state
             loss_policy = (policy * pred_policy.log()).sum(dim=-1).mean()
             loss_value = ((value-pred_value)**2).sum(dim=-1).mean()
             loss = loss_value - loss_policy # + reg l2 norm of all params
@@ -112,7 +112,7 @@ class DNN:
         self.model.eval()
         in_data = torch.from_numpy(in_data).unsqueeze(0)#put into batch
         tensor = in_data.float().cuda()
-        raw_policy, raw_value = self.model(tensor.unsqueeze(1))
+        raw_policy, raw_value = self.model(tensor)
         #print(raw_policy, raw_value)
         #output policy dist is long vector, reshape to matrix
         return raw_policy.cpu().data.numpy()[:,:self.input_dim**2].reshape(self.input_dim, -1), raw_value.cpu().data.numpy()[-1,-1]

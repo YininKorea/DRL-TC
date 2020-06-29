@@ -74,6 +74,8 @@ def drltc(simulation, logger, args):
 	for iteration in range(args.n_iterations):
 		start_iteration_time = time.time()
 
+		movement_layers = np.repeat(simulation.directions.transpose()[:,:,None], args.n_nodes, axis=-1)
+
 		for episode in range(args.n_episodes):
 			
 			root_state = State(np.zeros((args.n_nodes, args.n_nodes)))
@@ -87,7 +89,7 @@ def drltc(simulation, logger, args):
 						training_dataset.data[-index][-1] = np.array(reward) #update value in all datasets produced in this iteration
 				else:	
 
-					mcts = MCTS(root_state.shape, dnn, simulation, args.exploration_level)
+					mcts = MCTS(root_state.shape, dnn, simulation, args.exploration_level, movement_layers)
 					#TODO keep subtrees?
 
 					for search in range(args.n_searches):
@@ -101,7 +103,7 @@ def drltc(simulation, logger, args):
 					else:
 						normalized_visits = mcts.action_visits[root_state]
 
-					training_dataset.add([root_state.adjacency, normalized_visits.flatten(), None])
+					training_dataset.add([np.concatenate((root_state.adjacency[None,:,:],movement_layers)), normalized_visits.flatten(), None])
 					#print(normalized_visits)
 					next_action = np.unravel_index(np.random.choice(args.n_nodes**2, p=normalized_visits.flatten()), shape=normalized_visits.shape)
 					root_state = root_state.transition(next_action)
@@ -119,7 +121,7 @@ def drltc(simulation, logger, args):
 			state = State(np.zeros((args.n_nodes, args.n_nodes)))
 			trajectory = [state]
 			while not state.is_terminal():
-				state_policy, _ = dnn.eval(state.adjacency)
+				state_policy, _ = dnn.eval(np.concatenate((state.adjacency[None,:,:], movement_layers)))
 				#print(state_policy)
 				state_policy[~state.get_valid_actions()] = 0 # set invalid actions to 0
 				state_policy /= state_policy.sum() # re-normalize over valid actions
