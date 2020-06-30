@@ -96,7 +96,7 @@ class DNN:
             loss_policy = (policy * pred_policy.log()).sum(dim=-1).mean()
             loss_value = ((value-pred_value)**2).sum(dim=-1).mean()
             loss = loss_value - loss_policy # + reg l2 norm of all params
-            total_loss += loss
+            total_loss += loss.detach().cpu()
             # normalize loss if batch is not full?!
             self.optimizer.zero_grad()
             loss.backward()
@@ -115,7 +115,7 @@ class DNN:
         raw_policy, raw_value = self.model(tensor.unsqueeze(1))
         #print(raw_policy, raw_value)
         #output policy dist is long vector, reshape to matrix
-        return raw_policy.cpu().data.numpy()[:,:self.input_dim**2].reshape(self.input_dim, -1), raw_value.cpu().data.numpy()[-1,-1]
+        return raw_policy.detach().cpu().data.numpy()[:,:self.input_dim**2].reshape(self.input_dim, -1), raw_value.detach().cpu().data.numpy()[-1,-1]
 
 class Dataset(data.Dataset):
 

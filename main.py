@@ -1,6 +1,7 @@
 from MCTS import MCTS, State
 from Model import DNN, Dataset
 from Simulation import Simulation
+from sklearn.metrics.pairwise import euclidean_distances
 
 import networkx as nx
 import matplotlib.pyplot as plt
@@ -138,8 +139,6 @@ def drltc(simulation, logger, args):
 		statistics.append([lifetimes.mean(), lifetimes.max(), lifetimes.min(), lifetimes.std()])
 		random_statistics.append(random_baseline(simulation, args.n_simulations, args.n_nodes))
 		print(f'statistics: {statistics[-1]}')
-		torch.save(topologies, 'test.pt')
-		torch.save(simulation.node_positions, 'test2.pt')
 
 		plot_viz(topologies, simulation.node_positions, f'{args.experiment}/iteration_{iteration}.png', lifetimes.argmax())
 
