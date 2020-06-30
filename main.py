@@ -117,6 +117,7 @@ def drltc(simulation, logger, args):
 		# construct test topologies
 		lifetimes = []
 		max_value = 0
+		topologies = []
 		for i in range(args.n_simulations):
 			state = State(np.zeros((args.n_nodes, args.n_nodes)))
 			trajectory = [state]
@@ -129,6 +130,7 @@ def drltc(simulation, logger, args):
 				state = state.transition(next_action)
 				trajectory.append(state)
 			final_topology = state.adjacency
+			topologies.append(final_topology)
 			value = simulation.eval(final_topology)
 			lifetimes.append(value)
 			if (value > max_value):
@@ -139,6 +141,10 @@ def drltc(simulation, logger, args):
 		statistics.append([lifetimes.mean(), lifetimes.max(), lifetimes.min(), lifetimes.std()])
 		random_statistics.append(random_baseline(simulation, args.n_simulations, args.n_nodes))
 		print(f'statistics: {statistics[-1]}')
+		torch.save(topologies, 'test.pt')
+		torch.save(simulation.node_positions, 'test2.pt')
+
+		plot_viz(topologies, simulation.node_positions, f'{args.experiment}/iteration_{iteration}.png', lifetimes.argmax())
 
 		stop_iteration_time = time.time()
 		if args.lr_schedule == 'cyclic':
@@ -149,8 +155,8 @@ def drltc(simulation, logger, args):
 		if args.dataset_window_schedule == 'slide-scale' and iteration%2 == 0:
 			training_dataset.step()
 
-		if iteration%args.budget == 0 and iteration != 0:
-			simulation.step()
+		#if iteration%args.budget == 0 and iteration != 0:
+		simulation.step()
 
 		if iteration%10 == 0 and iteration != 0:
 			star, _ = star_baseline(simulation, args.n_nodes)
@@ -182,6 +188,37 @@ def check_dir(args):
 			raise Exception('Experiment exists')
 	else:
 		os.mkdir(f'./{args.experiment}')
+
+def plot_viz(topologies, positions, fname, argmax):
+	ax = plt.subplot()
+	ax.add_artist(plt.Circle((0, 0), 1000, fill=False, color='#00000010'))
+	ax.add_artist(plt.Circle((0, 0), 500, fill=False, color='#00000010'))
+	for topology in topologies:
+		edge_x, edge_y = np.where(topology)
+		G=nx.DiGraph()
+		edge_list = []
+		for x, y in zip(edge_x, edge_y):
+			edge_list.append((y, x))
+		G.add_edges_from(edge_list)
+		nx.draw_networkx_edges(G, pos=positions, edge_color='#000000', alpha=0.1, ax=ax)
+
+
+	topology = topologies[argmax]
+	edge_x, edge_y = np.where(topology)
+	G=nx.DiGraph()
+	edge_list = []
+	for x, y in zip(edge_x, edge_y):
+		edge_list.append((y, x))
+	G.add_edges_from(edge_list)
+	nx.draw(G, pos=positions, node_color='#ff0000', edge_color='#ff0000aa', with_labels=True, ax=ax)
+
+	limits=plt.axis('on') # turns on axis
+	ax.tick_params(left=True, bottom=True, labelleft=True, labelbottom=True)
+	plt.xlim(-1000, 1000)
+	plt.ylim(-1000,1000)
+	ax.set_aspect('equal', 'box')
+	plt.savefig(fname)
+	plt.clf()
 
 if __name__ == '__main__':
 	args = get_args()

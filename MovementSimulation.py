@@ -9,6 +9,7 @@ class Simulation():
 		random.seed(seed)
 		np.random.seed(seed)
 		self.direction_delta = 10
+		self.movement_delta = 40
 		self.n_nodes = n_nodes
 		self.scatter_area_radius = scatter_area_radius
 		self.initial_energy = initial_energy
@@ -33,9 +34,9 @@ class Simulation():
 			battery -= energy_consumption
 			battery[0] = 1 # make sure gateway is not the minimum (has theoretical infinite lifetime)
 			lifetime += 1
-			positions += directions
-			directions[np.linalg.norm(positions) >= self.scatter_area_radius] *= -1
-			directions += np.random.normal(size=(self.n_nodes, 2))
+			positions += directions * self.movement_delta
+			directions[np.linalg.norm(positions, axis=-1) >= self.scatter_area_radius] *= -1
+			#directions = np.sin(np.random.normal(size=(self.n_nodes, 2)))
 			directions = directions/np.linalg.norm(directions)
 		return lifetime
 
@@ -62,9 +63,10 @@ class Simulation():
 		# generate direction for cluster
 
 	def step(self):
-		self.node_positions += self.directions
-		self.directions[np.linalg.norm(self.node_positions) >= self.scatter_area_radius] *= -1
-		self.directions += np.random.normal(size=(self.n_nodes, 2))
+		self.node_positions += self.directions * self.movement_delta
+		self.directions[np.linalg.norm(self.node_positions, axis=-1) >= self.scatter_area_radius] *= -1
+		#self.directions += np.sin(np.random.normal(size=(self.n_nodes, 2)))
+		print(np.random.normal(size=(self.n_nodes, 2)))
 		self.directions = self.directions/np.linalg.norm(self.directions)
 
 
